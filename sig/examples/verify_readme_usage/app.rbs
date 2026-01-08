@@ -1,0 +1,19 @@
+#--
+# SPDX-FileCopyrightText: 2026 Kerrick Long <me@kerricklong.com>
+# SPDX-License-Identifier: MIT-0
+#++
+
+class VerifyReadmeUsage
+  class Model < Data
+    attr_reader text: String
+    def self.new: (text: String) -> instance
+  end
+
+  MODEL: Model
+
+  VIEW: ^(Model, RatatuiRuby::TUI) -> untyped
+
+  UPDATE: ^(RatatuiRuby::Event, Model) -> (Model | [Model, RatatuiRuby::Tea::Cmd::Quit])
+
+  def run: () -> void
+end

@@ -21,6 +21,7 @@ gem "flog", "4.8.0"
 
 gem "nokogiri" # For RDoc sidebar post-processing
 gem "faker"    # For realistic example data
+gem "steep"
 
 group :development do
   gem "ratatui_ruby-devtools"

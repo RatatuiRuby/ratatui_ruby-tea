@@ -13,9 +13,7 @@ packages:
   - gdbm
   - ncurses
   - libffi
-<%- if has_rust -%>
   - clang
-<%- end -%>
   - git
 artifacts:
   - <%= gem_name %>/pkg/<%= gem_filename %>
@@ -28,9 +26,7 @@ tasks:
       echo 'eval "$($HOME/.local/bin/mise activate bash)"' >> ~/.buildenv
       echo 'export LANG="en_US.UTF-8"' >> ~/.buildenv
       echo 'export LC_ALL="en_US.UTF-8"' >> ~/.buildenv
-<%- if has_rust -%>
       echo 'export BINDGEN_EXTRA_CLANG_ARGS="-include stdbool.h"' >> ~/.buildenv
-<%- end -%>
       . ~/.buildenv
       export CI="true"
       cd <%= gem_name %>
@@ -41,9 +37,6 @@ tasks:
       mise reshim
       mise x -- bundle config set --local frozen 'true'
       mise x -- bundle install
-<%- if has_rust -%>
-      mise x -- bundle exec rake compile
-<%- end -%>
   - test: |
       . ~/.buildenv
       cd <%= gem_name %>

@@ -1,0 +1,26 @@
+#--
+# SPDX-FileCopyrightText: 2026 Kerrick Long <me@kerricklong.com>
+# SPDX-License-Identifier: LGPL-3.0-or-later
+#++
+
+module RatatuiRuby
+  module Tea
+    class Runtime
+      # Starts the MVU event loop.
+      def self.run: [M, Msg] (
+        model: M,
+        view: ^(M model, RatatuiRuby::TUI tui) -> untyped,
+        update: ^(Msg msg, M model) -> (M | [M, Cmd::execution?] | [M, Cmd::Quit] | [M, nil]),
+        ?init: ^() -> Msg
+      ) -> M
+
+      private
+
+      def self.validate_view_result!: (untyped widget) -> void
+      def self.normalize_update_result: [M] (untyped result, M previous_model) -> [M, untyped]
+      def self.valid_cmd?: (untyped value) -> bool
+      def self.validate_ractor_shareable!: (untyped object, String name) -> void
+      def self.dispatch: (untyped cmd, Queue queue) -> void
+    end
+  end
+end

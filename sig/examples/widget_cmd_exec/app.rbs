@@ -1,0 +1,26 @@
+#--
+# SPDX-FileCopyrightText: 2026 Kerrick Long <me@kerricklong.com>
+# SPDX-License-Identifier: MIT-0
+#++
+
+class WidgetCmdExec
+  class Model < Data
+    attr_reader result: String
+    attr_reader loading: bool
+    attr_reader last_command: String?
+
+    def self.new: (result: String, loading: bool, last_command: String?) -> instance
+    def with: (**untyped) -> instance
+  end
+
+  INITIAL: Model
+
+  VIEW: ^(Model, RatatuiRuby::TUI) -> untyped
+
+  # Msg can be Event or [:got_output, Hash]
+  type msg = RatatuiRuby::Event | [Symbol, Hash[Symbol, untyped]]
+
+  UPDATE: ^(msg, Model) -> (Model | [Model, RatatuiRuby::Tea::Cmd::execution?])
+
+  def run: () -> void
+end

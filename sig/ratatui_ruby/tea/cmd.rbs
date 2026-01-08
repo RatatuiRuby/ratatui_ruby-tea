@@ -1,0 +1,32 @@
+#--
+# SPDX-FileCopyrightText: 2026 Kerrick Long <me@kerricklong.com>
+# SPDX-License-Identifier: LGPL-3.0-or-later
+#++
+
+module RatatuiRuby
+  module Tea
+    module Cmd
+      # Sentinel value for application termination.
+      class Quit < Data
+        def self.new: () -> instance
+      end
+
+      # Command to run a shell command via Open3.
+      class Exec < Data
+        attr_reader command: String
+        attr_reader tag: Symbol | Class
+
+        def self.new: (command: String, tag: (Symbol | Class)) -> instance
+      end
+
+      # Union type for all valid commands
+      type execution = Exec
+
+      # Creates a quit command.
+      def self.quit: () -> Quit
+
+      # Creates a shell execution command.
+      def self.exec: (String command, (Symbol | Class) tag) -> Exec
+    end
+  end
+end
