@@ -41,8 +41,18 @@ module RatatuiRuby
       # [model] Initial application state (immutable).
       # [view] Callable receiving <tt>(model, tui)</tt>, returns a widget.
       # [update] Callable receiving <tt>(msg, model)</tt>, returns <tt>[new_model, cmd]</tt> or just <tt>new_model</tt>.
-      def self.run(model:, view:, update:)
+      # [init] Optional callable to run at startup. Returns a message for update.
+      def self.run(model:, view:, update:, init: nil)
         validate_ractor_shareable!(model, "model")
+
+        # Execute init command synchronously if provided
+        if init
+          init_msg = init.call
+          result = update.call(init_msg, model)
+          model, _cmd = normalize_update_result(result, model)
+          validate_ractor_shareable!(model, "model")
+        end
+
         RatatuiRuby.run do |tui|
           loop do
             tui.draw do |frame|

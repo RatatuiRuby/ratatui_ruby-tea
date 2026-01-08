@@ -202,4 +202,30 @@ class TestRuntime < Minitest::Test
 
     assert_equal({ count: 1 }, final_model)
   end
+
+  def test_init_triggers_update_before_first_event
+    model = { initialized: false }.freeze
+    init_ran = false
+
+    view = -> (_m, tui) { tui.clear }
+    update = -> (msg, m) do
+      case msg
+      when :init_complete
+        init_ran = true
+        [{ initialized: true }.freeze, nil]
+      else
+        [m, RatatuiRuby::Tea::Cmd.quit]
+      end
+    end
+
+    # init: is a Cmd that returns a message
+    init_cmd = -> { :init_complete }
+
+    with_test_terminal do
+      inject_key("q")
+      RatatuiRuby::Tea::Runtime.run(model:, view:, update:, init: init_cmd)
+    end
+
+    assert init_ran, "init command should trigger update with :init_complete message"
+  end
 end
