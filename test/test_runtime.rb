@@ -33,4 +33,51 @@ class TestRuntime < Minitest::Test
     assert_equal model, view_args[0], "view should receive model as first arg"
     assert_kind_of RatatuiRuby::TUI, view_args[1], "view should receive TUI as second arg"
   end
+
+  def test_update_can_return_plain_model
+    model = { count: 0 }.freeze
+    call_count = 0
+
+    view = -> (_m, _t) { nil }
+    update = -> (msg, m) do
+      call_count += 1
+      if call_count >= 2 || msg.q?
+        [m, RatatuiRuby::Tea::Cmd.quit]
+      else
+        m # Return plain model, no tuple
+      end
+    end
+
+    with_test_terminal do
+      inject_key("a") # First event: causes plain model return
+      inject_key("q") # Second event: causes quit
+      RatatuiRuby::Tea::Runtime.run(model:, view:, update:)
+    end
+
+    assert_equal 2, call_count, "update should be called twice (once per event)"
+  end
+
+  def test_update_detects_array_model_vs_tuple
+    # Model is a 2-element array - should not be confused with [model, cmd] tuple
+    model = [:item1, :item2].freeze
+    received_model = nil
+
+    view = -> (m, _t) { received_model = m; nil }
+    update = -> (msg, m) do
+      if msg.q?
+        [m, RatatuiRuby::Tea::Cmd.quit]
+      else
+        m # Return the array model directly
+      end
+    end
+
+    with_test_terminal do
+      inject_key("a") # First event: returns array model
+      inject_key("q") # Second event: quits
+      RatatuiRuby::Tea::Runtime.run(model:, view:, update:)
+    end
+
+    # The model should still be the 2-element array, not destructured
+    assert_equal [:item1, :item2], received_model, "array model should not be confused with [model, cmd] tuple"
+  end
 end

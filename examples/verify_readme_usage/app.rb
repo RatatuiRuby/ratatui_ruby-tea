@@ -31,7 +31,7 @@ class VerifyReadmeUsage
     if msg.q? || msg.ctrl_c?
       [model, RatatuiRuby::Tea::Cmd.quit]
     else
-      [model, nil]
+      model
     end
   end
 
