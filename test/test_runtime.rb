@@ -11,6 +11,10 @@ require "ratatui_ruby/test_helper"
 class TestRuntime < Minitest::Test
   include RatatuiRuby::TestHelper
 
+  private def ractor_error_pattern
+    /ractor|frozen|shareable/i
+  end
+
   def test_runtime_class_exists
     assert_kind_of Class, RatatuiRuby::Tea::Runtime
   end
@@ -129,7 +133,7 @@ class TestRuntime < Minitest::Test
       end
     end
 
-    assert_match(/nil/i, error.message, "error message should mention 'nil'")
+    assert_match(/\bnil\b/i, error.message, "error message should mention 'nil'")
   end
 
   def test_view_returning_clear_renders_empty_screen
@@ -146,5 +150,56 @@ class TestRuntime < Minitest::Test
     end
 
     assert view_called, "view should have been called"
+  end
+
+  def test_mutable_model_raises_error
+    mutable_model = { count: 0 } # NOT frozen
+
+    view = -> (_m, tui) { tui.clear }
+    update = -> (_msg, _m) { RatatuiRuby::Tea::Cmd.quit }
+
+    error = assert_raises(RatatuiRuby::Error::Invariant) do
+      with_test_terminal do
+        inject_key("q")
+        RatatuiRuby::Tea::Runtime.run(model: mutable_model, view:, update:)
+      end
+    end
+
+    assert_match ractor_error_pattern, error.message
+  end
+
+  def test_update_returning_mutable_model_raises_error
+    model = { count: 0 }.freeze
+
+    view = -> (_m, tui) { tui.clear }
+    update = -> (_msg, _m) { { count: 1 } } # Returns mutable hash - NOT frozen
+
+    error = assert_raises(RatatuiRuby::Error::Invariant) do
+      with_test_terminal do
+        inject_key("a")
+        inject_key("q")
+        RatatuiRuby::Tea::Runtime.run(model:, view:, update:)
+      end
+    end
+
+    assert_match ractor_error_pattern, error.message
+  end
+
+  def test_update_returning_frozen_model_succeeds
+    model = { count: 0 }.freeze
+    final_model = nil
+
+    view = -> (m, tui) { final_model = m; tui.clear }
+    update = -> (msg, m) do
+      msg.q? ? [m, RatatuiRuby::Tea::Cmd.quit] : { count: m[:count] + 1 }.freeze
+    end
+
+    with_test_terminal do
+      inject_key("a") # Triggers update that returns frozen model
+      inject_key("q")
+      RatatuiRuby::Tea::Runtime.run(model:, view:, update:)
+    end
+
+    assert_equal({ count: 1 }, final_model)
   end
 end

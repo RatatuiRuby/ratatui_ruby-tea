@@ -42,6 +42,7 @@ module RatatuiRuby
       # [view] Callable receiving <tt>(model, tui)</tt>, returns a widget.
       # [update] Callable receiving <tt>(msg, model)</tt>, returns <tt>[new_model, cmd]</tt> or just <tt>new_model</tt>.
       def self.run(model:, view:, update:)
+        validate_ractor_shareable!(model, "model")
         RatatuiRuby.run do |tui|
           loop do
             tui.draw do |frame|
@@ -52,6 +53,7 @@ module RatatuiRuby
             msg = tui.poll_event
             result = update.call(msg, model)
             model, cmd = normalize_update_result(result, model)
+            validate_ractor_shareable!(model, "model")
             break if cmd.is_a?(Cmd::Quit)
           end
         end
@@ -81,6 +83,17 @@ module RatatuiRuby
       # Returns +true+ if +value+ is a valid command (+nil+ or a +Cmd+ type).
       private_class_method def self.valid_cmd?(value)
         value.nil? || value.class.name&.start_with?("RatatuiRuby::Tea::Cmd::")
+      end
+
+      # Validates an object is Ractor-shareable (deeply frozen).
+      #
+      # Models and messages must be shareable for future Ractor support.
+      # Mutable objects cause race conditions. Freeze your data.
+      private_class_method def self.validate_ractor_shareable!(object, name)
+        return if Ractor.shareable?(object)
+
+        raise RatatuiRuby::Error::Invariant,
+          "#{name.capitalize} is not Ractor-shareable. Call .freeze on your #{name}."
       end
     end
   end
