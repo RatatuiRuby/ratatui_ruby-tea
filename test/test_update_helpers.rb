@@ -7,7 +7,7 @@
 
 require "test_helper"
 
-class TestRouting < Minitest::Test
+class TestUpdateHelpers < Minitest::Test
   # Tea.route wraps a command with Command.map, prefixing results.
   # This reduces boilerplate when triggering child commands from parents.
   #

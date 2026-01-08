@@ -6,14 +6,14 @@
 #++
 
 require "test_helper"
-require_relative "../examples/app_fractal_dashboard/dashboard"
+require_relative "../examples/app_fractal_dashboard/dashboard/update_manual"
 
 class TestFractalDashboard < Minitest::Test
   def test_update_routes_stats_panel_message
-    model = FractalDashboard::INITIAL
+    model = DashboardManual::INITIAL
     msg = [:stats, :system_info, { stdout: "Darwin\n", stderr: "", status: 0 }]
 
-    result = FractalDashboard::UPDATE.call(msg, model)
+    result = DashboardManual::UPDATE.call(msg, model)
 
     new_model, cmd = result
     assert_equal "Darwin", new_model.stats.system_info.output
@@ -21,10 +21,10 @@ class TestFractalDashboard < Minitest::Test
   end
 
   def test_update_routes_network_panel_message
-    model = FractalDashboard::INITIAL
+    model = DashboardManual::INITIAL
     msg = [:network, :ping, { stdout: "PING localhost\n", stderr: "", status: 0 }]
 
-    result = FractalDashboard::UPDATE.call(msg, model)
+    result = DashboardManual::UPDATE.call(msg, model)
 
     new_model, cmd = result
     assert_equal "PING localhost", new_model.network.ping.output
@@ -32,10 +32,10 @@ class TestFractalDashboard < Minitest::Test
   end
 
   def test_s_key_triggers_mapped_system_info_command
-    model = FractalDashboard::INITIAL
+    model = DashboardManual::INITIAL
     msg = RatatuiRuby::Event::Key.new(code: "s", modifiers: [])
 
-    result = FractalDashboard::UPDATE.call(msg, model)
+    result = DashboardManual::UPDATE.call(msg, model)
 
     new_model, cmd = result
     assert new_model.stats.system_info.loading, "Should set loading state"
@@ -45,10 +45,10 @@ class TestFractalDashboard < Minitest::Test
   end
 
   def test_p_key_triggers_mapped_ping_command
-    model = FractalDashboard::INITIAL
+    model = DashboardManual::INITIAL
     msg = RatatuiRuby::Event::Key.new(code: "p", modifiers: [])
 
-    result = FractalDashboard::UPDATE.call(msg, model)
+    result = DashboardManual::UPDATE.call(msg, model)
 
     new_model, cmd = result
     assert new_model.network.ping.loading, "Should set loading state"

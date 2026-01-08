@@ -354,4 +354,51 @@ class TestRuntime < Minitest::Test
     assert_equal :parent, received_msg[0], "Mapper should wrap with :parent"
     assert_equal :inner_done, received_msg[1], "Inner tag should be preserved"
   end
+
+  def test_sync_event_waits_for_pending_threads
+    # When the runtime sees a Sync event, it should wait for all pending
+    # threads to complete and process their results before continuing.
+    model = { result: nil }.freeze
+    result_seen_before_quit = nil
+
+    view = -> (_m, tui) { tui.clear }
+    update = -> (msg, m) do
+      case msg
+      when RatatuiRuby::Event::Key
+        if msg.code == "a"
+          cmd = RatatuiRuby::Tea::Command.system("echo 'loaded'", tag: :data)
+          [m, cmd]
+        elsif msg.q?
+          result_seen_before_quit = m[:result]
+          [m, RatatuiRuby::Tea::Command.exit]
+        else
+          m
+        end
+      when Array
+        tag_hash, data = msg
+        if tag_hash[:tag] == :data
+          Ractor.make_shareable({ result: data[:stdout].strip })
+        else
+          m
+        end
+      else
+        m
+      end
+    end
+
+    require "open3"
+    mock_status = Object.new
+    mock_status.define_singleton_method(:exitstatus) { 0 }
+    Open3.stub(:capture3, ["loaded\n", "", mock_status]) do
+      with_test_terminal do
+        inject_key("a")       # Triggers async command
+        inject_sync           # Wait for command to complete
+        inject_key(:q)        # Quit - should see result
+        RatatuiRuby::Tea::Runtime.run(model:, view:, update:)
+      end
+    end
+
+    assert_equal "loaded", result_seen_before_quit,
+      "Sync should ensure async result is processed before next event"
+  end
 end

@@ -54,6 +54,7 @@ module RatatuiRuby
         end
 
         queue = Queue.new
+        pending_threads = []
 
         catch(:quit) do
           RatatuiRuby.run do |tui|
@@ -74,10 +75,39 @@ module RatatuiRuby
                 validate_ractor_shareable!(model, "model")
                 throw :quit if command.is_a?(Command::Exit)
 
-                dispatch(command, queue) if command
+                thread = dispatch(command, queue) if command
+                pending_threads << thread if thread
               end
 
-              # 2. Check for background outcomes
+              # 2. Check for synthetic events (Sync)
+              # This comes AFTER poll_event so Sync waits for commands dispatched
+              # by the preceding event (e.g., inject_key("a"); inject_sync)
+              if RatatuiRuby.synthetic_events_pending?
+                synthetic = RatatuiRuby.pop_synthetic_event
+                if synthetic&.sync?
+                  # Wait for all pending threads to complete
+                  pending_threads.each(&:join)
+                  pending_threads.clear
+
+                  # Process all pending queue items
+                  until queue.empty?
+                    begin
+                      background_message = queue.pop(true)
+                      result = update.call(background_message, model)
+                      model, command = normalize_update_result(result, model)
+                      validate_ractor_shareable!(model, "model")
+                      throw :quit if command.is_a?(Command::Exit)
+
+                      thread = dispatch(command, queue) if command
+                      pending_threads << thread if thread
+                    rescue ThreadError
+                      break
+                    end
+                  end
+                end
+              end
+
+              # 3. Check for background outcomes (non-blocking)
               until queue.empty?
                 begin
                   background_message = queue.pop(true)
@@ -86,7 +116,8 @@ module RatatuiRuby
                   validate_ractor_shareable!(model, "model")
                   throw :quit if command.is_a?(Command::Exit)
 
-                  dispatch(command, queue) if command
+                  thread = dispatch(command, queue) if command
+                  pending_threads << thread if thread
                 rescue ThreadError
                   break
                 end
@@ -138,6 +169,7 @@ module RatatuiRuby
       # Dispatches a command to the worker pool.
       #
       # Spawns a thread for async commands. Pushes result to +queue+.
+      # Returns the spawned thread (or nil for non-threaded commands).
       # Handles nested commands (Batch, Sequence) recursively.
       private_class_method def self.dispatch(command, queue)
         case command
@@ -154,8 +186,9 @@ module RatatuiRuby
           # TODO: Add Batch, Sequence, NetHttp
         when Command::Mapped
           inner_queue = Queue.new
-          dispatch(command.inner_command, inner_queue)
+          inner_thread = dispatch(command.inner_command, inner_queue)
           Thread.new do
+            inner_thread&.join
             inner_message = inner_queue.pop
             transformed = command.mapper.call(inner_message)
             queue << Ractor.make_shareable(transformed)
