@@ -44,13 +44,28 @@ module RatatuiRuby
       def self.run(model:, view:, update:)
         RatatuiRuby.run do |tui|
           loop do
-            tui.draw { |frame| frame.render_widget(view.call(model, tui), frame.area) }
+            tui.draw do |frame|
+              widget = view.call(model, tui)
+              validate_view_result!(widget)
+              frame.render_widget(widget, frame.area)
+            end
             msg = tui.poll_event
             result = update.call(msg, model)
             model, cmd = normalize_update_result(result, model)
             break if cmd.is_a?(Cmd::Quit)
           end
         end
+      end
+
+      # Validates the view returned a widget.
+      #
+      # Views return widget trees. Returning +nil+ is a bug—you forgot to
+      # return something. For an intentionally empty screen, use TUI#clear.
+      private_class_method def self.validate_view_result!(widget)
+        return unless widget.nil?
+
+        raise RatatuiRuby::Error::Invariant,
+          "View returned nil. Return a widget, or use TUI#clear for an empty screen."
       end
 
       # Detects whether +result+ is a +[model, cmd]+ tuple, a plain model, or a Cmd alone.

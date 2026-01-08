@@ -23,7 +23,7 @@ class TestRuntime < Minitest::Test
     model = { text: "hello" }.freeze
     view_args = nil
 
-    view = -> (m, t) { view_args = [m, t]; nil }
+    view = -> (m, t) { view_args = [m, t]; t.clear }
     update = -> (msg, _m) { [model, RatatuiRuby::Tea::Cmd.quit] }
 
     with_test_terminal do
@@ -38,7 +38,7 @@ class TestRuntime < Minitest::Test
     model = { count: 0 }.freeze
     call_count = 0
 
-    view = -> (_m, _t) { nil }
+    view = -> (_m, tui) { tui.clear }
     update = -> (msg, m) do
       call_count += 1
       if call_count >= 2 || msg.q?
@@ -62,7 +62,7 @@ class TestRuntime < Minitest::Test
     model = [:item1, :item2].freeze
     received_model = nil
 
-    view = -> (m, _t) { received_model = m; nil }
+    view = -> (m, tui) { received_model = m; tui.clear }
     update = -> (msg, m) do
       if msg.q?
         [m, RatatuiRuby::Tea::Cmd.quit]
@@ -85,7 +85,7 @@ class TestRuntime < Minitest::Test
     model = { count: 0 }.freeze
     received_model = nil
 
-    view = -> (m, _t) { received_model = m; nil }
+    view = -> (m, tui) { received_model = m; tui.clear }
     update = -> (_msg, _m) { RatatuiRuby::Tea::Cmd.quit }
 
     with_test_terminal do
@@ -101,7 +101,7 @@ class TestRuntime < Minitest::Test
     received_model = nil
     call_count = 0
 
-    view = -> (m, _t) { received_model = m; nil }
+    view = -> (m, tui) { received_model = m; tui.clear }
     update = -> (_msg, _m) do
       call_count += 1
       (call_count >= 2) ? RatatuiRuby::Tea::Cmd.quit : nil
@@ -114,5 +114,37 @@ class TestRuntime < Minitest::Test
     end
 
     assert_same model, received_model, "model should be preserved when update returns nil"
+  end
+
+  def test_view_returning_nil_raises_error
+    model = { text: "hello" }.freeze
+
+    view = -> (_m, _t) { nil }
+    update = -> (_msg, _m) { RatatuiRuby::Tea::Cmd.quit }
+
+    error = assert_raises(RatatuiRuby::Error::Invariant) do
+      with_test_terminal do
+        inject_key("q")
+        RatatuiRuby::Tea::Runtime.run(model:, view:, update:)
+      end
+    end
+
+    assert_match(/nil/i, error.message, "error message should mention 'nil'")
+  end
+
+  def test_view_returning_clear_renders_empty_screen
+    model = { text: "hello" }.freeze
+    view_called = false
+
+    view = -> (_m, tui) { view_called = true; tui.clear }
+    update = -> (_msg, _m) { RatatuiRuby::Tea::Cmd.quit }
+
+    # tui.clear is the intentional way to render nothing
+    with_test_terminal do
+      inject_key("q")
+      RatatuiRuby::Tea::Runtime.run(model:, view:, update:)
+    end
+
+    assert view_called, "view should have been called"
   end
 end
