@@ -11,6 +11,7 @@ Commands in TEA produce **messages**, not callbacks. When a command completes, t
 ## Key Concepts
 
 - **Message Tags:** `Cmd.exec(command, tag)` produces `[tag, {stdout:, stderr:, status:}]`.
+- **Non-Blocking:** Commands run in background threads. The UI remains responsive.
 - **Success Handling:** Match on `status: 0` to handle successful execution.
 - **Error Handling:** Match on non-zero status to handle failures.
 - **Ractor-Safe:** No callbacks means no Proc captures. Messages are shareable.

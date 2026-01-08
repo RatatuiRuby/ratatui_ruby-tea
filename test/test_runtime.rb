@@ -31,6 +31,7 @@ class TestRuntime < Minitest::Test
     update = -> (msg, _m) { [model, RatatuiRuby::Tea::Cmd.quit] }
 
     with_test_terminal do
+      inject_key("q")
       RatatuiRuby::Tea::Runtime.run(model:, view:, update:)
     end
 
@@ -229,7 +230,7 @@ class TestRuntime < Minitest::Test
     assert init_ran, "init command should trigger update with :init_complete message"
   end
 
-  def test_runtime_executes_cmd_exec
+  def test_update_receives_message_from_successful_cmd
     model = { output: nil }.freeze
     received_stdout = nil
 
@@ -238,6 +239,7 @@ class TestRuntime < Minitest::Test
       case msg
       in [:got_output, { stdout:, status: 0 }]
         received_stdout = stdout.strip
+        assert Ractor.shareable?(msg), "Background message must be Ractor-shareable"
         [Ractor.make_shareable({ output: stdout }), RatatuiRuby::Tea::Cmd.quit]
       else
         # First event triggers the exec command
@@ -259,7 +261,7 @@ class TestRuntime < Minitest::Test
     assert_equal "hello", received_stdout
   end
 
-  def test_runtime_executes_cmd_exec_failure
+  def test_update_receives_message_from_failed_cmd
     model = { error: nil }.freeze
     received_stderr = nil
 
@@ -268,6 +270,7 @@ class TestRuntime < Minitest::Test
       case msg
       in [:ran_cmd, { stderr:, status: }] if status != 0
         received_stderr = stderr
+        assert Ractor.shareable?(msg), "Background message must be Ractor-shareable"
         [Ractor.make_shareable({ error: stderr }), RatatuiRuby::Tea::Cmd.quit]
       else
         [m, RatatuiRuby::Tea::Cmd.exec("false", :ran_cmd)]

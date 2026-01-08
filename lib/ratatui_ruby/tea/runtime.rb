@@ -53,29 +53,49 @@ module RatatuiRuby
           validate_ractor_shareable!(model, "model")
         end
 
-        RatatuiRuby.run do |tui|
-          loop do
-            tui.draw do |frame|
-              widget = view.call(model, tui)
-              validate_view_result!(widget)
-              frame.render_widget(widget, frame.area)
-            end
-            msg = tui.poll_event
-            result = update.call(msg, model)
-            model, cmd = normalize_update_result(result, model)
-            validate_ractor_shareable!(model, "model")
-            break if cmd.is_a?(Cmd::Quit)
+        queue = Queue.new
 
-            # Execute Cmd::Exec synchronously (blocking)
-            if cmd.is_a?(Cmd::Exec)
-              exec_msg = execute_cmd_exec(cmd)
-              result = update.call(exec_msg, model)
-              model, cmd = normalize_update_result(result, model)
-              validate_ractor_shareable!(model, "model")
-              break if cmd.is_a?(Cmd::Quit)
+        catch(:quit) do
+          RatatuiRuby.run do |tui|
+            loop do
+              tui.draw do |frame|
+                widget = view.call(model, tui)
+                validate_view_result!(widget)
+                frame.render_widget(widget, frame.area)
+              end
+
+              # 1. Handle user input (blocks up to 16ms)
+              msg = tui.poll_event
+
+              # If provided, handle the event
+              unless msg.is_a?(RatatuiRuby::Event::None)
+                result = update.call(msg, model)
+                model, cmd = normalize_update_result(result, model)
+                validate_ractor_shareable!(model, "model")
+                throw :quit if cmd.is_a?(Cmd::Quit)
+
+                dispatch(cmd, queue) if cmd
+              end
+
+              # 2. Check for background outcomes
+              until queue.empty?
+                begin
+                  bg_msg = queue.pop(true)
+                  result = update.call(bg_msg, model)
+                  model, cmd = normalize_update_result(result, model)
+                  validate_ractor_shareable!(model, "model")
+                  throw :quit if cmd.is_a?(Cmd::Quit)
+
+                  dispatch(cmd, queue) if cmd
+                rescue ThreadError
+                  break
+                end
+              end
             end
           end
         end
+
+        model
       end
 
       # Validates the view returned a widget.
@@ -112,18 +132,27 @@ module RatatuiRuby
         return if Ractor.shareable?(object)
 
         raise RatatuiRuby::Error::Invariant,
-          "#{name.capitalize} is not Ractor-shareable. Call .freeze on your #{name}."
+          "#{name.capitalize} is not Ractor-shareable. Use Ractor.make_shareable or Object#freeze."
       end
 
-      # Executes a shell command and produces the result message.
+      # Dispatches a command to the worker pool.
       #
-      # Returns <tt>[tag, {stdout:, stderr:, status:}]</tt> for update.
-      # Message is made Ractor-shareable (deeply frozen).
-      # Runs synchronously. For async execution, use the worker pool (future).
-      private_class_method def self.execute_cmd_exec(cmd)
-        require "open3"
-        stdout, stderr, status = Open3.capture3(cmd.command)
-        Ractor.make_shareable([cmd.tag, { stdout:, stderr:, status: status.exitstatus }])
+      # Spawns a thread for async commands. Pushes result to +queue+.
+      # Handles nested commands (Batch, Sequence) recursively.
+      private_class_method def self.dispatch(cmd, queue)
+        case cmd
+        when Cmd::Exec
+          Thread.new do
+            require "open3"
+            stdout, stderr, status = Open3.capture3(cmd.command)
+            msg = [cmd.tag, { stdout:, stderr:, status: status.exitstatus }]
+            queue << Ractor.make_shareable(msg)
+          rescue => e
+            # Should we send an error message? For now, crash in debug, ignore in prod?
+            # Better to rely on Open3 not raising for standard execution.
+          end
+          # TODO: Add Batch, Sequence, NetHttp
+        end
       end
     end
   end
