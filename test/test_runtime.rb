@@ -228,4 +228,95 @@ class TestRuntime < Minitest::Test
 
     assert init_ran, "init command should trigger update with :init_complete message"
   end
+
+  def test_runtime_executes_cmd_exec
+    model = { output: nil }.freeze
+    received_stdout = nil
+
+    view = -> (_m, tui) { tui.clear }
+    update = -> (msg, m) do
+      case msg
+      in [:got_output, { stdout:, status: 0 }]
+        received_stdout = stdout.strip
+        [Ractor.make_shareable({ output: stdout }), RatatuiRuby::Tea::Cmd.quit]
+      else
+        # First event triggers the exec command
+        [m, RatatuiRuby::Tea::Cmd.exec("echo hello", :got_output)]
+      end
+    end
+
+    # Stub Open3.capture3 to avoid actual shell execution
+    require "open3"
+    mock_status = Object.new
+    mock_status.define_singleton_method(:exitstatus) { 0 }
+    Open3.stub(:capture3, ["hello\n", "", mock_status]) do
+      with_test_terminal do
+        inject_key("a") # triggers exec
+        RatatuiRuby::Tea::Runtime.run(model:, view:, update:)
+      end
+    end
+
+    assert_equal "hello", received_stdout
+  end
+
+  def test_runtime_executes_cmd_exec_failure
+    model = { error: nil }.freeze
+    received_stderr = nil
+
+    view = -> (_m, tui) { tui.clear }
+    update = -> (msg, m) do
+      case msg
+      in [:ran_cmd, { stderr:, status: }] if status != 0
+        received_stderr = stderr
+        [Ractor.make_shareable({ error: stderr }), RatatuiRuby::Tea::Cmd.quit]
+      else
+        [m, RatatuiRuby::Tea::Cmd.exec("false", :ran_cmd)]
+      end
+    end
+
+    # Stub Open3.capture3 for failure
+    require "open3"
+    mock_status = Object.new
+    mock_status.define_singleton_method(:exitstatus) { 1 }
+    Open3.stub(:capture3, ["", "command failed\n", mock_status]) do
+      with_test_terminal do
+        inject_key("a")
+        RatatuiRuby::Tea::Runtime.run(model:, view:, update:)
+      end
+    end
+
+    assert_equal "command failed\n", received_stderr
+  end
+
+  def test_runtime_executes_cmd_exec_success_with_stderr_noise
+    # Some programs write output to stdout AND noise/warnings to stderr on success
+    model = { output: nil, noise: nil }.freeze
+    received_stdout = nil
+    received_stderr = nil
+
+    view = -> (_m, tui) { tui.clear }
+    update = -> (msg, m) do
+      case msg
+      in [:ran_cmd, { stdout:, stderr:, status: 0 }]
+        received_stdout = stdout
+        received_stderr = stderr
+        [Ractor.make_shareable({ output: stdout, noise: stderr }), RatatuiRuby::Tea::Cmd.quit]
+      else
+        [m, RatatuiRuby::Tea::Cmd.exec("compiler --verbose", :ran_cmd)]
+      end
+    end
+
+    require "open3"
+    mock_status = Object.new
+    mock_status.define_singleton_method(:exitstatus) { 0 }
+    Open3.stub(:capture3, ["compiled.o\n", "warning: deprecated syntax\n", mock_status]) do
+      with_test_terminal do
+        inject_key("a")
+        RatatuiRuby::Tea::Runtime.run(model:, view:, update:)
+      end
+    end
+
+    assert_equal "compiled.o\n", received_stdout
+    assert_equal "warning: deprecated syntax\n", received_stderr
+  end
 end

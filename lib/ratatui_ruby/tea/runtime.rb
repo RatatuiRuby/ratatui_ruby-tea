@@ -65,6 +65,15 @@ module RatatuiRuby
             model, cmd = normalize_update_result(result, model)
             validate_ractor_shareable!(model, "model")
             break if cmd.is_a?(Cmd::Quit)
+
+            # Execute Cmd::Exec synchronously (blocking)
+            if cmd.is_a?(Cmd::Exec)
+              exec_msg = execute_cmd_exec(cmd)
+              result = update.call(exec_msg, model)
+              model, cmd = normalize_update_result(result, model)
+              validate_ractor_shareable!(model, "model")
+              break if cmd.is_a?(Cmd::Quit)
+            end
           end
         end
       end
@@ -104,6 +113,17 @@ module RatatuiRuby
 
         raise RatatuiRuby::Error::Invariant,
           "#{name.capitalize} is not Ractor-shareable. Call .freeze on your #{name}."
+      end
+
+      # Executes a shell command and produces the result message.
+      #
+      # Returns <tt>[tag, {stdout:, stderr:, status:}]</tt> for update.
+      # Message is made Ractor-shareable (deeply frozen).
+      # Runs synchronously. For async execution, use the worker pool (future).
+      private_class_method def self.execute_cmd_exec(cmd)
+        require "open3"
+        stdout, stderr, status = Open3.capture3(cmd.command)
+        Ractor.make_shareable([cmd.tag, { stdout:, stderr:, status: status.exitstatus }])
       end
     end
   end
