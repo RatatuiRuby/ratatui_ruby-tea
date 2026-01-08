@@ -322,4 +322,36 @@ class TestRuntime < Minitest::Test
     assert_equal "compiled.o\n", received_stdout
     assert_equal "warning: deprecated syntax\n", received_stderr
   end
+
+  def test_runtime_dispatches_mapped_command
+    model = { output: nil }.freeze
+    received_msg = nil
+
+    view = -> (_m, tui) { tui.clear }
+    update = -> (msg, m) do
+      case msg
+      in [:parent, :inner_done, { stdout:, status: 0 }]
+        received_msg = msg
+        [Ractor.make_shareable({ output: stdout }), RatatuiRuby::Tea::Cmd.quit]
+      else
+        # First event triggers the mapped command
+        inner_cmd = RatatuiRuby::Tea::Cmd.exec("echo hello", :inner_done)
+        mapped_cmd = RatatuiRuby::Tea::Cmd.map(inner_cmd) { |m| [:parent, *m] }
+        [m, mapped_cmd]
+      end
+    end
+
+    require "open3"
+    mock_status = Object.new
+    mock_status.define_singleton_method(:exitstatus) { 0 }
+    Open3.stub(:capture3, ["hello\n", "", mock_status]) do
+      with_test_terminal do
+        inject_key("a") # triggers mapped command
+        RatatuiRuby::Tea::Runtime.run(model:, view:, update:)
+      end
+    end
+
+    assert_equal :parent, received_msg[0], "Mapper should wrap with :parent"
+    assert_equal :inner_done, received_msg[1], "Inner tag should be preserved"
+  end
 end

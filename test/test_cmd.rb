@@ -25,4 +25,22 @@ class TestCmd < Minitest::Test
     # The command itself should be shareable (no Proc captures)
     assert Ractor.shareable?(cmd), "Cmd::Exec should be Ractor-shareable"
   end
+
+  def test_cmd_map_creates_mapped_command
+    inner = RatatuiRuby::Tea::Cmd.exec("echo hello", :inner_tag)
+
+    cmd = RatatuiRuby::Tea::Cmd.map(inner) { |msg| [:parent, msg] }
+
+    assert_kind_of RatatuiRuby::Tea::Cmd::Mapped, cmd
+  end
+
+  def test_cmd_map_stores_inner_and_mapper
+    inner = RatatuiRuby::Tea::Cmd.exec("echo hello", :inner_tag)
+    mapper = -> (msg) { [:parent, msg] }
+
+    cmd = RatatuiRuby::Tea::Cmd.map(inner, &mapper)
+
+    assert_equal inner, cmd.inner_cmd
+    assert_equal mapper, cmd.mapper
+  end
 end

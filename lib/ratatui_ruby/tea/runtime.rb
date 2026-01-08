@@ -152,6 +152,14 @@ module RatatuiRuby
             # Better to rely on Open3 not raising for standard execution.
           end
           # TODO: Add Batch, Sequence, NetHttp
+        when Cmd::Mapped
+          inner_queue = Queue.new
+          dispatch(cmd.inner_cmd, inner_queue)
+          Thread.new do
+            inner_msg = inner_queue.pop
+            transformed = cmd.mapper.call(inner_msg)
+            queue << Ractor.make_shareable(transformed)
+          end
         end
       end
     end

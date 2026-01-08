@@ -20,13 +20,24 @@ module RatatuiRuby
       end
 
       # Union type for all valid commands
-      type execution = Exec
+      type execution = Exec | Mapped
 
       # Creates a quit command.
       def self.quit: () -> Quit
 
       # Creates a shell execution command.
       def self.exec: (String command, (Symbol | Class) tag) -> Exec
+
+      # Command that wraps another command's result with a transformation.
+      class Mapped < Data
+        attr_reader inner_cmd: execution
+        attr_reader mapper: ^(untyped) -> untyped
+
+        def self.new: (inner_cmd: execution, mapper: ^(untyped) -> untyped) -> instance
+      end
+
+      # Creates a mapped command for Fractal Architecture composition.
+      def self.map: (execution inner_cmd) { (untyped) -> untyped } -> Mapped
     end
   end
 end

@@ -83,6 +83,14 @@ module RatatuiRuby
       def self.exec(command, tag)
         Exec.new(command:, tag:)
       end
+
+      # Wraps a command to transform its result message.
+      Mapped = Data.define(:inner_cmd, :mapper)
+
+      # Creates a mapped command.
+      def self.map(inner_cmd, &mapper)
+        Mapped.new(inner_cmd:, mapper:)
+      end
     end
   end
 end
