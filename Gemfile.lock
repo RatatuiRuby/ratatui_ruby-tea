@@ -3,7 +3,7 @@ PATH
   specs:
     ratatui_ruby-tea (0.2.0)
       ostruct (~> 0.6)
-      ratatui_ruby (~> 0.9)
+      ratatui_ruby (~> 0.9.1)
 
 GEM
   remote: https://rubygems.org/
@@ -142,7 +142,7 @@ GEM
     rainbow (3.1.1)
     rake (13.3.1)
     rake-compiler-dock (1.11.0)
-    ratatui_ruby (0.9.0)
+    ratatui_ruby (0.9.1)
       ostruct (~> 0.6)
       rb_sys (~> 0.9)
     ratatui_ruby-devtools (0.1.0)
@@ -343,7 +343,7 @@ CHECKSUMS
   rainbow (3.1.1) sha256=039491aa3a89f42efa1d6dec2fc4e62ede96eb6acd95e52f1ad581182b79bc6a
   rake (13.3.1) sha256=8c9e89d09f66a26a01264e7e3480ec0607f0c497a861ef16063604b1b08eb19c
   rake-compiler-dock (1.11.0) sha256=eab51f2cd533eb35cea6b624a75281f047123e70a64c58b607471bb49428f8c2
-  ratatui_ruby (0.9.0) sha256=b66624f5dcc3bd4257db20ffa9006a7af8c91a20013ef58ffe820f1f7a2676aa
+  ratatui_ruby (0.9.1) sha256=66996459cf10fc86d2cb42a7e9486b070df2130f2f5acb1670b8431149689634
   ratatui_ruby-devtools (0.1.0) sha256=be259bbd30fa9ccdd0febc00830d942845997a87c02de876e4c3d99f4839baf6
   ratatui_ruby-tea (0.2.0)
   rb-fsevent (0.11.2) sha256=43900b972e7301d6570f64b850a5aa67833ee7d87b458ee92805d56b7318aefe

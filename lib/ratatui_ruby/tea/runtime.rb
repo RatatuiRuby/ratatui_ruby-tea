@@ -82,8 +82,8 @@ module RatatuiRuby
               # 2. Check for synthetic events (Sync)
               # This comes AFTER poll_event so Sync waits for commands dispatched
               # by the preceding event (e.g., inject_key("a"); inject_sync)
-              if RatatuiRuby.synthetic_events_pending?
-                synthetic = RatatuiRuby.pop_synthetic_event
+              if RatatuiRuby::SyntheticEvents.pending?
+                synthetic = RatatuiRuby::SyntheticEvents.pop
                 if synthetic&.sync?
                   # Wait for all pending threads to complete
                   pending_threads.each(&:join)

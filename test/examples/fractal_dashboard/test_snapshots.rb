@@ -64,7 +64,9 @@ class TestFractalDashboardSnapshots < Minitest::Test
   def test_after_system_info_key
     with_mocked_open3 do
       with_test_terminal do
-        inject_keys("s", :q)
+        inject_key("s")
+        inject_sync
+        inject_key(:q)
 
         RatatuiRuby::Tea.run(
           model: DashboardManual::INITIAL,
@@ -80,7 +82,9 @@ class TestFractalDashboardSnapshots < Minitest::Test
   def test_after_disk_usage_key
     with_mocked_open3 do
       with_test_terminal do
-        inject_keys("d", :q)
+        inject_key("d")
+        inject_sync
+        inject_key(:q)
 
         RatatuiRuby::Tea.run(
           model: DashboardManual::INITIAL,
@@ -96,7 +100,9 @@ class TestFractalDashboardSnapshots < Minitest::Test
   def test_after_ping_key
     with_mocked_open3 do
       with_test_terminal do
-        inject_keys("p", :q)
+        inject_key("p")
+        inject_sync
+        inject_key(:q)
 
         RatatuiRuby::Tea.run(
           model: DashboardManual::INITIAL,
@@ -112,7 +118,9 @@ class TestFractalDashboardSnapshots < Minitest::Test
   def test_after_uptime_key
     with_mocked_open3 do
       with_test_terminal do
-        inject_keys("u", :q)
+        inject_key("u")
+        inject_sync
+        inject_key(:q)
 
         RatatuiRuby::Tea.run(
           model: DashboardManual::INITIAL,

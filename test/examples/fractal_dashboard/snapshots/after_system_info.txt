@@ -1,5 +1,5 @@
 ┌System Info───────────────────────────┐┌Disk Usage────────────────────────────┐
-│Press 's' for system info             ││Press 'd' for disk usage              │
+│Darwin testhost 24.0.0 Darwin Kernel V││Press 'd' for disk usage              │
 │                                      ││                                      │
 │                                      ││                                      │
 │                                      ││                                      │
