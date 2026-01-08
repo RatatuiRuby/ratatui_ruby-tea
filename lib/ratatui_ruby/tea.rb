@@ -8,6 +8,7 @@
 require_relative "tea/version"
 require_relative "tea/command"
 require_relative "tea/runtime"
+require_relative "tea/router"
 
 module RatatuiRuby # :nodoc: Documented in the ratatui_ruby gem.
   # The Elm Architecture for RatatuiRuby.
@@ -29,31 +30,31 @@ module RatatuiRuby # :nodoc: Documented in the ratatui_ruby gem.
 
     # Wraps a command with a routing prefix.
     #
-    # Parents trigger child commands. The results need routing back
-    # to the correct child. Manually wrapping every command is tedious.
+    # Parent bags trigger child bag commands. The results need routing back
+    # to the correct child bag. Manually wrapping every command is tedious.
     #
     # This method prefixes command results automatically. Use it to route
-    # child command results in Fractal Architecture.
+    # child bag command results in Fractal Architecture.
     #
-    # [command] The child command to wrap.
+    # [command] The child bag command to wrap.
     # [prefix] Symbol prepended to results (e.g., <tt>:stats</tt>).
     #
     # === Example
     #
     #   # Verbose:
-    #   Command.map(widget.fetch_command) { |r| [:stats, *r] }
+    #   Command.map(child_bag.fetch_command) { |r| [:stats, *r] }
     #
     #   # Concise:
-    #   Tea.route(widget.fetch_command, :stats)
+    #   Tea.route(child_bag.fetch_command, :stats)
     def self.route(command, prefix)
       Command.map(command) { |result| [prefix, *result] }
     end
 
-    # Delegates a prefixed message to a child UPDATE.
+    # Delegates a prefixed message to a child bag's UPDATE.
     #
-    # Parent UPDATE functions route messages to children. Each route requires
-    # pattern matching, calling the child, and rewrapping any returned command.
-    # The boilerplate adds up fast.
+    # Parent bag UPDATE functions route messages to child bags. Each route
+    # requires pattern matching, calling the child, and rewrapping any returned
+    # command. The boilerplate adds up fast.
     #
     # This method handles the dispatch. It checks the prefix, calls the child,
     # and wraps any command. Returns <tt>nil</tt> if the prefix does not match.
