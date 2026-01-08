@@ -80,7 +80,46 @@ gem install ratatui_ruby-tea
 
 ## Usage
 
-_Because this gem is in pre-release, it lacks documentation. Please check the source files.
+**ratatui_ruby-tea** uses the Model-View-Update (MVU) pattern. You provide an immutable model, a view function, and an update function.
+
+<!-- SPDX-SnippetBegin -->
+<!--
+  SPDX-FileCopyrightText: 2026 Kerrick Long
+  SPDX-License-Identifier: MIT-0
+-->
+<!-- SYNC:START:examples/verify_readme_usage/app.rb:mvu -->
+```ruby
+Model = Data.define(:text)
+MODEL = Model.new(text: "Hello, Ratatui! Press 'q' to quit.")
+
+VIEW = -> (model, tui) do
+  tui.paragraph(
+    text: model.text,
+    alignment: :center,
+    block: tui.block(
+      title: "My Ruby TUI App",
+      borders: [:all],
+      border_style: { fg: "cyan" }
+    )
+  )
+end
+
+UPDATE = -> (msg, model) do
+  if msg.q? || msg.ctrl_c?
+    [model, RatatuiRuby::Tea::Cmd.quit]
+  else
+    [model, nil]
+  end
+end
+
+def run
+  RatatuiRuby::Tea.run(model: MODEL, view: VIEW, update: UPDATE)
+end
+```
+<!-- SYNC:END -->
+<!-- SPDX-SnippetEnd -->
+
+![Hello Ratatui](./doc/images/verify_readme_usage.png)
 
 For a full tutorial, see [the Quickstart](./doc/getting_started/quickstart.md). For an explanation of the application architecture, see [Application Architecture](./doc/concepts/application_architecture.md).
 

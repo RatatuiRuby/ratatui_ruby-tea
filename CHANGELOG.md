@@ -15,4 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release of ratatui_ruby-tea
+- `RatatuiRuby::Tea.run` — MVU event loop entry point
+- `RatatuiRuby::Tea::Runtime` — the event loop implementation
+- `RatatuiRuby::Tea::Cmd.quit` — sentinel command to terminate the loop
+- `examples/verify_readme_usage` — documented example with README
