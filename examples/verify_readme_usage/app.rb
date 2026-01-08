@@ -29,7 +29,7 @@ class VerifyReadmeUsage
 
   UPDATE = -> (msg, model) do
     if msg.q? || msg.ctrl_c?
-      RatatuiRuby::Tea::Cmd.quit
+      RatatuiRuby::Tea::Command.exit
     else
       model
     end

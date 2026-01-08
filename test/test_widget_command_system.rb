@@ -6,15 +6,15 @@
 #++
 
 require "test_helper"
-$LOAD_PATH.unshift File.expand_path("../examples/widget_cmd_exec", __dir__)
+$LOAD_PATH.unshift File.expand_path("../examples/widget_command_system", __dir__)
 require "app"
 
-class TestWidgetCmdExec < Minitest::Test
+class TestWidgetCommandSystem < Minitest::Test
   def test_update_handles_successful_exec_result
-    model = WidgetCmdExec::INITIAL
+    model = WidgetCommandSystem::INITIAL
     msg = [:got_output, { stdout: "file1\nfile2\n", stderr: "", status: 0 }]
 
-    result = WidgetCmdExec::UPDATE.call(msg, model)
+    result = WidgetCommandSystem::UPDATE.call(msg, model)
 
     assert_kind_of Array, result
     new_model, cmd = result
@@ -25,10 +25,10 @@ class TestWidgetCmdExec < Minitest::Test
   end
 
   def test_update_handles_failed_exec_result
-    model = WidgetCmdExec::INITIAL
+    model = WidgetCommandSystem::INITIAL
     msg = [:got_output, { stdout: "", stderr: "No such file\n", status: 1 }]
 
-    result = WidgetCmdExec::UPDATE.call(msg, model)
+    result = WidgetCommandSystem::UPDATE.call(msg, model)
 
     new_model, cmd = result
     assert_includes new_model.result, "Error (exit 1)"

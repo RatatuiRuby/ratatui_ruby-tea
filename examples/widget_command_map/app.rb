@@ -10,7 +10,7 @@ $LOAD_PATH.unshift File.expand_path("../../lib", __dir__)
 require "ratatui_ruby"
 require "ratatui_ruby/tea"
 
-# Demonstrates Fractal Architecture with +Cmd.map+ for component composition.
+# Demonstrates Fractal Architecture with +Command.map+ for component composition.
 #
 # == The Problem: Monolithic Update Functions
 #
@@ -18,7 +18,7 @@ require "ratatui_ruby/tea"
 # in one giant +case+ statement. Redux calls this the "root reducer" problem. Elm
 # calls it the "God Msg" anti-pattern. You end up with:
 #
-#   case msg
+#   case message
 #   in :sidebar_loaded then ...
 #   in :header_clicked then ...
 #   in :footer_resized then ...
@@ -33,11 +33,11 @@ require "ratatui_ruby/tea"
 # Each component owns its own +Model+, +UPDATE+, and +VIEW+. Parents compose
 # children by:
 # 1. Delegating messages via +UPDATE+
-# 2. Wrapping commands with +Cmd.map+
+# 2. Wrapping commands with +Command.map+
 # 3. Calling child +VIEW+ functions to build the widget tree
 #
 # This pattern has many names:
-# - *Elm*: The Elm Architecture (TEA) with +Cmd.map+
+# - *Elm*: The Elm Architecture (TEA) with +Command.map+
 # - *Redux*: Combining reducers with action namespacing
 # - *BubbleTea* (Go): The +tea.Model+ interface with +tea.Cmd+ forwarding
 # - *Rust Ratatui*: Not built-in, but common in community examples
@@ -52,16 +52,16 @@ require "ratatui_ruby/tea"
 #
 # [For Angular developers]
 #   Each module is like a component. +Model+ is the component state. +UPDATE+
-#   handles events. +VIEW+ is the template. +Cmd.map+ is like piping child
+#   handles events. +VIEW+ is the template. +Command.map+ is like piping child
 #   outputs through parent handlers. No two-way binding—data flows one way.
 #
 # [For Vue/Vuex developers]
 #   +Model+ is the Vuex store. +UPDATE+ is a mutation handler. +VIEW+ is the
-#   template. +Cmd+ is an action for side effects. +Cmd.map+ is namespacing.
+#   template. +Cmd+ is an action for side effects. +Command.map+ is namespacing.
 #
 # [For React/Redux developers]
 #   +Model+ is state. +UPDATE+ is a reducer. +VIEW+ is a functional component.
-#   Messages are actions. +Cmd+ is redux-saga/thunk. +Cmd.map+ is action prefixing.
+#   Messages are actions. +Cmd+ is redux-saga/thunk. +Command.map+ is action prefixing.
 #
 # [For Rust Ratatui developers]
 #   This is TEA from BubbleTea. +Model+ is your app struct. +UPDATE+ is the
@@ -69,24 +69,24 @@ require "ratatui_ruby/tea"
 #
 # [For Go BubbleTea developers]
 #   Nearly identical. +Model+ = +tea.Model+. +UPDATE+ = +Update+ method.
-#   +VIEW+ = +View+ method. +Cmd.map+ wraps child +tea.Cmd+ returns.
+#   +VIEW+ = +View+ method. +Command.map+ wraps child +tea.Cmd+ returns.
 #
 # == Architecture
 #
 #   Dashboard (root)
 #   ├── StatsPanel
-#   │   ├── SystemInfoWidget → Model, UPDATE, VIEW, fetch_cmd
-#   │   └── DiskUsageWidget  → Model, UPDATE, VIEW, fetch_cmd
+#   │   ├── SystemInfoWidget → Model, UPDATE, VIEW, fetch_command
+#   │   └── DiskUsageWidget  → Model, UPDATE, VIEW, fetch_command
 #   └── NetworkPanel
-#       ├── PingWidget       → Model, UPDATE, VIEW, fetch_cmd
-#       └── UptimeWidget     → Model, UPDATE, VIEW, fetch_cmd
+#       ├── PingWidget       → Model, UPDATE, VIEW, fetch_command
+#       └── UptimeWidget     → Model, UPDATE, VIEW, fetch_command
 #
 # == How Message Routing Works
 #
 # 1. User presses 's' (system info)
 # 2. Dashboard UPDATE returns:
-#    +Cmd.map(widget_cmd) { |widget_result| [:stats, *widget_result] }+
-# 3. Runtime executes +inner_cmd+ (the shell command)
+#    +Command.map(widget_cmd) { |widget_result| [:stats, *widget_result] }+
+# 3. Runtime executes +inner_command+ (the shell command)
 # 4. Shell returns +[:system_info, {stdout: "Darwin..."}]+
 # 5. Mapper transforms to +[:stats, :system_info, {stdout: "Darwin..."}]+
 # 6. Dashboard UPDATE receives message, pattern-matches on +:stats+, delegates
@@ -97,8 +97,8 @@ require "ratatui_ruby/tea"
 #
 #   ruby examples/widget_cmd_map/app.rb
 #
-class WidgetCmdMap
-  Cmd = RatatuiRuby::Tea::Cmd
+class WidgetCommandMap
+  Command = RatatuiRuby::Tea::Command
 
   # ============================================================================
   # CHILD WIDGETS
@@ -107,9 +107,9 @@ class WidgetCmdMap
   # Each widget is a self-contained module with:
   # - +Model+: The state (a frozen Data struct for immutability)
   # - +INITIAL+: The starting state
-  # - +UPDATE+: A lambda that handles messages → returns +[new_model, cmd]+
+  # - +UPDATE+: A lambda that handles messages → returns +[new_model, command]+
   # - +VIEW+: A lambda that renders the widget → returns a widget tree
-  # - +fetch_cmd+: A factory method returning the command to execute
+  # - +fetch_command+: A factory method returning the command to execute
   #
   # Widgets know nothing about their parents. Parents call their VIEW.
 
@@ -134,8 +134,8 @@ class WidgetCmdMap
       )
     end
 
-    UPDATE = lambda do |msg, model|
-      case msg
+    UPDATE = lambda do |message, model|
+      case message
       in [:system_info, { stdout:, status: 0 }]
         [model.with(output: Ractor.make_shareable(stdout.strip), loading: false), nil]
       in [:system_info, { stderr:, _status: }]
@@ -145,8 +145,8 @@ class WidgetCmdMap
       end
     end
 
-    def self.fetch_cmd
-      Cmd.exec("uname -a", :system_info)
+    def self.fetch_command
+      Command.system("uname -a", :system_info)
     end
   end
 
@@ -162,8 +162,8 @@ class WidgetCmdMap
       )
     end
 
-    UPDATE = lambda do |msg, model|
-      case msg
+    UPDATE = lambda do |message, model|
+      case message
       in [:disk_usage, { stdout:, status: 0 }]
         lines = Ractor.make_shareable(stdout.lines.first(4).join.strip)
         [model.with(output: lines, loading: false), nil]
@@ -174,8 +174,8 @@ class WidgetCmdMap
       end
     end
 
-    def self.fetch_cmd
-      Cmd.exec("df -h", :disk_usage)
+    def self.fetch_command
+      Command.system("df -h", :disk_usage)
     end
   end
 
@@ -191,8 +191,8 @@ class WidgetCmdMap
       )
     end
 
-    UPDATE = lambda do |msg, model|
-      case msg
+    UPDATE = lambda do |message, model|
+      case message
       in [:ping, { stdout:, status: 0 }]
         [model.with(output: Ractor.make_shareable(stdout.strip), loading: false), nil]
       in [:ping, { stderr:, _status: }]
@@ -202,8 +202,8 @@ class WidgetCmdMap
       end
     end
 
-    def self.fetch_cmd
-      Cmd.exec("ping -c 1 localhost", :ping)
+    def self.fetch_command
+      Command.system("ping -c 1 localhost", :ping)
     end
   end
 
@@ -219,8 +219,8 @@ class WidgetCmdMap
       )
     end
 
-    UPDATE = lambda do |msg, model|
-      case msg
+    UPDATE = lambda do |message, model|
+      case message
       in [:uptime, { stdout:, status: 0 }]
         [model.with(output: Ractor.make_shareable(stdout.strip), loading: false), nil]
       in [:uptime, { stderr:, _status: }]
@@ -230,8 +230,8 @@ class WidgetCmdMap
       end
     end
 
-    def self.fetch_cmd
-      Cmd.exec("uptime", :uptime)
+    def self.fetch_command
+      Command.system("uptime", :uptime)
     end
   end
 
@@ -273,16 +273,16 @@ class WidgetCmdMap
       )
     end
 
-    UPDATE = lambda do |msg, model|
-      case msg
+    UPDATE = lambda do |message, model|
+      case message
       in [:system_info, *rest]
-        child_msg = [:system_info, *rest]
-        new_child, cmd = SystemInfoWidget::UPDATE.call(child_msg, model.system_info)
-        [model.with(system_info: new_child), cmd]
+        child_message = [:system_info, *rest]
+        new_child, command = SystemInfoWidget::UPDATE.call(child_message, model.system_info)
+        [model.with(system_info: new_child), command]
       in [:disk_usage, *rest]
-        child_msg = [:disk_usage, *rest]
-        new_child, cmd = DiskUsageWidget::UPDATE.call(child_msg, model.disk_usage)
-        [model.with(disk_usage: new_child), cmd]
+        child_message = [:disk_usage, *rest]
+        new_child, command = DiskUsageWidget::UPDATE.call(child_message, model.disk_usage)
+        [model.with(disk_usage: new_child), command]
       else
         [model, nil]
       end
@@ -309,16 +309,16 @@ class WidgetCmdMap
       )
     end
 
-    UPDATE = lambda do |msg, model|
-      case msg
+    UPDATE = lambda do |message, model|
+      case message
       in [:ping, *rest]
-        child_msg = [:ping, *rest]
-        new_child, cmd = PingWidget::UPDATE.call(child_msg, model.ping)
-        [model.with(ping: new_child), cmd]
+        child_message = [:ping, *rest]
+        new_child, command = PingWidget::UPDATE.call(child_message, model.ping)
+        [model.with(ping: new_child), command]
       in [:uptime, *rest]
-        child_msg = [:uptime, *rest]
-        new_child, cmd = UptimeWidget::UPDATE.call(child_msg, model.uptime)
-        [model.with(uptime: new_child), cmd]
+        child_message = [:uptime, *rest]
+        new_child, command = UptimeWidget::UPDATE.call(child_message, model.uptime)
+        [model.with(uptime: new_child), command]
       else
         [model, nil]
       end
@@ -331,7 +331,7 @@ class WidgetCmdMap
   #
   # The root composes panels. It:
   # 1. Handles user input (key presses)
-  # 2. Triggers commands wrapped with +Cmd.map+
+  # 2. Triggers commands wrapped with +Command.map+
   # 3. Routes command results to panels via +UPDATE+
   # 4. Calls panel +VIEW+ functions to build the complete widget tree
 
@@ -368,7 +368,7 @@ class WidgetCmdMap
           tui.text_span(content: ": Quit"),
         ]),
       ],
-      block: tui.block(title: "Fractal Dashboard (Cmd.map Demo)", borders: [:all], border_style: dim)
+      block: tui.block(title: "Fractal Dashboard (Command.map Demo)", borders: [:all], border_style: dim)
     )
 
     # Layout: call child VIEWs and arrange in vertical stack
@@ -383,55 +383,55 @@ class WidgetCmdMap
     )
   end
 
-  # Handles all events. Returns +[new_model, cmd]+ or just +cmd+.
+  # Handles all events. Returns +[new_model, command]+ or just +cmd+.
   #
-  # == The Key Insight: +Cmd.map+
+  # == The Key Insight: +Command.map+
   #
   # When triggering a child command, wrap it to prefix the result:
   #
-  #   child_cmd = SystemInfoWidget.fetch_cmd
+  #   child_command = SystemInfoWidget.fetch_command
   #   # Produces: [:system_info, {stdout: "Darwin..."}]
   #
-  #   parent_cmd = Cmd.map(child_cmd) { |child_result| [:stats, *child_result] }
+  #   parent_cmd = Command.map(child_command) { |child_result| [:stats, *child_result] }
   #   # Produces: [:stats, :system_info, {stdout: "Darwin..."}]
   #
   # The root UPDATE then routes based on the first element.
-  UPDATE = lambda do |msg, model|
-    case msg
+  UPDATE = lambda do |message, model|
+    case message
     # Route command results to panels
     in [:stats, *rest]
-      new_panel, cmd = StatsPanel::UPDATE.call(rest, model.stats)
-      mapped_cmd = cmd ? Cmd.map(cmd) { |child_result| [:stats, *child_result] } : nil
-      [model.with(stats: new_panel), mapped_cmd]
+      new_panel, command = StatsPanel::UPDATE.call(rest, model.stats)
+      mapped_command = command ? Command.map(command) { |child_result| [:stats, *child_result] } : nil
+      [model.with(stats: new_panel), mapped_command]
 
     in [:network, *rest]
-      new_panel, cmd = NetworkPanel::UPDATE.call(rest, model.network)
-      mapped_cmd = cmd ? Cmd.map(cmd) { |child_result| [:network, *child_result] } : nil
-      [model.with(network: new_panel), mapped_cmd]
+      new_panel, command = NetworkPanel::UPDATE.call(rest, model.network)
+      mapped_command = command ? Command.map(command) { |child_result| [:network, *child_result] } : nil
+      [model.with(network: new_panel), mapped_command]
 
     # Handle user input
-    in _ if msg.q? || msg.ctrl_c?
-      Cmd.quit
+    in _ if message.q? || message.ctrl_c?
+      Command.exit
 
-    in _ if msg.s?
-      cmd = Cmd.map(SystemInfoWidget.fetch_cmd) { |widget_result| [:stats, *widget_result] }
+    in _ if message.s?
+      command = Command.map(SystemInfoWidget.fetch_command) { |widget_result| [:stats, *widget_result] }
       new_stats = model.stats.with(system_info: model.stats.system_info.with(loading: true))
-      [model.with(stats: new_stats), cmd]
+      [model.with(stats: new_stats), command]
 
-    in _ if msg.d?
-      cmd = Cmd.map(DiskUsageWidget.fetch_cmd) { |widget_result| [:stats, *widget_result] }
+    in _ if message.d?
+      command = Command.map(DiskUsageWidget.fetch_command) { |widget_result| [:stats, *widget_result] }
       new_stats = model.stats.with(disk_usage: model.stats.disk_usage.with(loading: true))
-      [model.with(stats: new_stats), cmd]
+      [model.with(stats: new_stats), command]
 
-    in _ if msg.p?
-      cmd = Cmd.map(PingWidget.fetch_cmd) { |widget_result| [:network, *widget_result] }
+    in _ if message.p?
+      command = Command.map(PingWidget.fetch_command) { |widget_result| [:network, *widget_result] }
       new_network = model.network.with(ping: model.network.ping.with(loading: true))
-      [model.with(network: new_network), cmd]
+      [model.with(network: new_network), command]
 
-    in _ if msg.u?
-      cmd = Cmd.map(UptimeWidget.fetch_cmd) { |widget_result| [:network, *widget_result] }
+    in _ if message.u?
+      command = Command.map(UptimeWidget.fetch_command) { |widget_result| [:network, *widget_result] }
       new_network = model.network.with(uptime: model.network.uptime.with(loading: true))
-      [model.with(network: new_network), cmd]
+      [model.with(network: new_network), command]
 
     else
       model
@@ -443,4 +443,4 @@ class WidgetCmdMap
   end
 end
 
-WidgetCmdMap.new.run if __FILE__ == $PROGRAM_NAME
+WidgetCommandMap.new.run if __FILE__ == $PROGRAM_NAME

@@ -26,7 +26,7 @@ class TestCallableTypes < Minitest::Test
 
     update = proc do |_message, current_model|
       update_called = true
-      [current_model, RatatuiRuby::Tea::Cmd.quit]
+      [current_model, RatatuiRuby::Tea::Command.exit]
     end
 
     with_test_terminal do
@@ -50,7 +50,7 @@ class TestCallableTypes < Minitest::Test
 
     update = lambda do |_message, current_model|
       update_called = true
-      [current_model, RatatuiRuby::Tea::Cmd.quit]
+      [current_model, RatatuiRuby::Tea::Command.exit]
     end
 
     with_test_terminal do
@@ -69,7 +69,7 @@ class TestCallableTypes < Minitest::Test
 
   def update_method(_message, current_model)
     @update_method_called = true
-    [current_model, RatatuiRuby::Tea::Cmd.quit]
+    [current_model, RatatuiRuby::Tea::Command.exit]
   end
 
   def test_method_objects_work_as_view_and_update
@@ -114,7 +114,7 @@ class TestCallableTypes < Minitest::Test
 
     def call(_message, current_model)
       @called = true
-      [current_model, RatatuiRuby::Tea::Cmd.quit]
+      [current_model, RatatuiRuby::Tea::Command.exit]
     end
   end
 

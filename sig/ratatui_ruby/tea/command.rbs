@@ -5,39 +5,39 @@
 
 module RatatuiRuby
   module Tea
-    module Cmd
+    module Command
       # Sentinel value for application termination.
-      class Quit < Data
+      class Exit < Data
         def self.new: () -> instance
       end
 
       # Command to run a shell command via Open3.
-      class Exec < Data
+      class System < Data
         attr_reader command: String
         attr_reader tag: Symbol | Class
 
         def self.new: (command: String, tag: (Symbol | Class)) -> instance
       end
 
-      # Union type for all valid commands
-      type execution = Exec | Mapped
-
-      # Creates a quit command.
-      def self.quit: () -> Quit
-
-      # Creates a shell execution command.
-      def self.exec: (String command, (Symbol | Class) tag) -> Exec
-
       # Command that wraps another command's result with a transformation.
       class Mapped < Data
-        attr_reader inner_cmd: execution
+        attr_reader inner_command: execution
         attr_reader mapper: ^(untyped) -> untyped
 
-        def self.new: (inner_cmd: execution, mapper: ^(untyped) -> untyped) -> instance
+        def self.new: (inner_command: execution, mapper: ^(untyped) -> untyped) -> instance
       end
 
+      # Union type for all valid commands
+      type execution = Execute | Mapped
+
+      # Creates a quit command.
+      def self.exit: () -> Quit
+
+      # Creates a shell execution command.
+      def self.system: (String command, (Symbol | Class) tag) -> Execute
+
       # Creates a mapped command for Fractal Architecture composition.
-      def self.map: (execution inner_cmd) { (untyped) -> untyped } -> Mapped
+      def self.map: (execution inner_command) { (untyped) -> untyped } -> Mapped
     end
   end
 end

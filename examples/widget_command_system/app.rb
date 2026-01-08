@@ -10,7 +10,7 @@ $LOAD_PATH.unshift File.expand_path("../../lib", __dir__)
 require "ratatui_ruby"
 require "ratatui_ruby/tea"
 
-# Demonstrates the Cmd.exec command for running shell commands.
+# Demonstrates the Command.execute command for running shell commands.
 #
 # This example shows how to execute shell commands and handle both success
 # and failure cases using pattern matching in update. The split layout shows
@@ -23,7 +23,7 @@ require "ratatui_ruby/tea"
 #   ruby examples/widget_cmd_exec/app.rb
 #
 # rdoc-image:/doc/images/widget_cmd_exec.png
-class WidgetCmdExec
+class WidgetCommandSystem
   Model = Data.define(:result, :loading, :last_command)
   INITIAL = Model.new(
     result: "Press a key to run a command...",
@@ -44,7 +44,7 @@ class WidgetCmdExec
       "cyan"
     end
 
-    title = model.last_command ? "Output: #{model.last_command}" : "Cmd.exec Demo"
+    title = model.last_command ? "Output: #{model.last_command}" : "Command.execute Demo"
     content_text = model.loading ? "Running command..." : model.result
 
     # 1. Main Output Widget
@@ -97,8 +97,8 @@ class WidgetCmdExec
     )
   end
 
-  UPDATE = -> (msg, model) do
-    case msg
+  UPDATE = -> (message, model) do
+    case message
     # Handle command results
     in [:got_output, { stdout:, status: 0 }]
       [model.with(result: stdout.strip.freeze, loading: false), nil]
@@ -106,19 +106,19 @@ class WidgetCmdExec
       [model.with(result: "Error (exit #{status}): #{stderr.strip}".freeze, loading: false), nil]
 
     # Handle key presses
-    in _ if msg.q? || msg.ctrl_c?
-      RatatuiRuby::Tea::Cmd.quit
-    in _ if msg.d?
-      [model.with(loading: true, last_command: "ls -la"), RatatuiRuby::Tea::Cmd.exec("ls -la", :got_output)]
-    in _ if msg.u?
-      [model.with(loading: true, last_command: "uname -a"), RatatuiRuby::Tea::Cmd.exec("uname -a", :got_output)]
-    in _ if msg.s?
-      cmd = "sleep 3 && echo 'Slept for 3s'"
-      [model.with(loading: true, last_command: cmd.freeze), RatatuiRuby::Tea::Cmd.exec(cmd, :got_output)]
-    in _ if msg.f?
+    in _ if message.q? || message.ctrl_c?
+      RatatuiRuby::Tea::Command.exit
+    in _ if message.d?
+      [model.with(loading: true, last_command: "ls -la"), RatatuiRuby::Tea::Command.system("ls -la", :got_output)]
+    in _ if message.u?
+      [model.with(loading: true, last_command: "uname -a"), RatatuiRuby::Tea::Command.system("uname -a", :got_output)]
+    in _ if message.s?
+      command = "sleep 3 && echo 'Slept for 3s'"
+      [model.with(loading: true, last_command: cmd.freeze), RatatuiRuby::Tea::Command.system(cmd, :got_output)]
+    in _ if message.f?
       # Intentional failure to demonstrate error handling
-      cmd = "ls /nonexistent_path_12345"
-      [model.with(loading: true, last_command: cmd.freeze), RatatuiRuby::Tea::Cmd.exec(cmd, :got_output)]
+      command = "ls /nonexistent_path_12345"
+      [model.with(loading: true, last_command: cmd.freeze), RatatuiRuby::Tea::Command.system(cmd, :got_output)]
     else
       model
     end
@@ -129,4 +129,4 @@ class WidgetCmdExec
   end
 end
 
-WidgetCmdExec.new.run if __FILE__ == $PROGRAM_NAME
+WidgetCommandSystem.new.run if __FILE__ == $PROGRAM_NAME

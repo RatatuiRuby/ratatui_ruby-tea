@@ -6,7 +6,7 @@
 #++
 
 require_relative "tea/version"
-require_relative "tea/cmd"
+require_relative "tea/command"
 require_relative "tea/runtime"
 
 module RatatuiRuby # :nodoc: Documented in the ratatui_ruby gem.

@@ -28,7 +28,7 @@ class TestRuntime < Minitest::Test
     view_args = nil
 
     view = -> (m, t) { view_args = [m, t]; t.clear }
-    update = -> (msg, _m) { [model, RatatuiRuby::Tea::Cmd.quit] }
+    update = -> (msg, _m) { [model, RatatuiRuby::Tea::Command.exit] }
 
     with_test_terminal do
       inject_key("q")
@@ -47,7 +47,7 @@ class TestRuntime < Minitest::Test
     update = -> (msg, m) do
       call_count += 1
       if call_count >= 2 || msg.q?
-        [m, RatatuiRuby::Tea::Cmd.quit]
+        [m, RatatuiRuby::Tea::Command.exit]
       else
         m # Return plain model, no tuple
       end
@@ -70,7 +70,7 @@ class TestRuntime < Minitest::Test
     view = -> (m, tui) { received_model = m; tui.clear }
     update = -> (msg, m) do
       if msg.q?
-        [m, RatatuiRuby::Tea::Cmd.quit]
+        [m, RatatuiRuby::Tea::Command.exit]
       else
         m # Return the array model directly
       end
@@ -86,12 +86,12 @@ class TestRuntime < Minitest::Test
     assert_equal [:item1, :item2], received_model, "array model should not be confused with [model, cmd] tuple"
   end
 
-  def test_update_can_return_cmd_only
+  def test_update_can_return_command_only
     model = { count: 0 }.freeze
     received_model = nil
 
     view = -> (m, tui) { received_model = m; tui.clear }
-    update = -> (_msg, _m) { RatatuiRuby::Tea::Cmd.quit }
+    update = -> (_msg, _m) { RatatuiRuby::Tea::Command.exit }
 
     with_test_terminal do
       inject_key("a")
@@ -109,7 +109,7 @@ class TestRuntime < Minitest::Test
     view = -> (m, tui) { received_model = m; tui.clear }
     update = -> (_msg, _m) do
       call_count += 1
-      (call_count >= 2) ? RatatuiRuby::Tea::Cmd.quit : nil
+      (call_count >= 2) ? RatatuiRuby::Tea::Command.exit : nil
     end
 
     with_test_terminal do
@@ -125,7 +125,7 @@ class TestRuntime < Minitest::Test
     model = { text: "hello" }.freeze
 
     view = -> (_m, _t) { nil }
-    update = -> (_msg, _m) { RatatuiRuby::Tea::Cmd.quit }
+    update = -> (_msg, _m) { RatatuiRuby::Tea::Command.exit }
 
     error = assert_raises(RatatuiRuby::Error::Invariant) do
       with_test_terminal do
@@ -142,7 +142,7 @@ class TestRuntime < Minitest::Test
     view_called = false
 
     view = -> (_m, tui) { view_called = true; tui.clear }
-    update = -> (_msg, _m) { RatatuiRuby::Tea::Cmd.quit }
+    update = -> (_msg, _m) { RatatuiRuby::Tea::Command.exit }
 
     # tui.clear is the intentional way to render nothing
     with_test_terminal do
@@ -157,7 +157,7 @@ class TestRuntime < Minitest::Test
     mutable_model = { count: 0 } # NOT frozen
 
     view = -> (_m, tui) { tui.clear }
-    update = -> (_msg, _m) { RatatuiRuby::Tea::Cmd.quit }
+    update = -> (_msg, _m) { RatatuiRuby::Tea::Command.exit }
 
     error = assert_raises(RatatuiRuby::Error::Invariant) do
       with_test_terminal do
@@ -192,7 +192,7 @@ class TestRuntime < Minitest::Test
 
     view = -> (m, tui) { final_model = m; tui.clear }
     update = -> (msg, m) do
-      msg.q? ? [m, RatatuiRuby::Tea::Cmd.quit] : { count: m[:count] + 1 }.freeze
+      msg.q? ? [m, RatatuiRuby::Tea::Command.exit] : { count: m[:count] + 1 }.freeze
     end
 
     with_test_terminal do
@@ -215,7 +215,7 @@ class TestRuntime < Minitest::Test
         init_ran = true
         [{ initialized: true }.freeze, nil]
       else
-        [m, RatatuiRuby::Tea::Cmd.quit]
+        [m, RatatuiRuby::Tea::Command.exit]
       end
     end
 
@@ -230,7 +230,7 @@ class TestRuntime < Minitest::Test
     assert init_ran, "init command should trigger update with :init_complete message"
   end
 
-  def test_update_receives_message_from_successful_cmd
+  def test_update_receives_message_from_successful_command
     model = { output: nil }.freeze
     received_stdout = nil
 
@@ -240,10 +240,10 @@ class TestRuntime < Minitest::Test
       in [:got_output, { stdout:, status: 0 }]
         received_stdout = stdout.strip
         assert Ractor.shareable?(msg), "Background message must be Ractor-shareable"
-        [Ractor.make_shareable({ output: stdout }), RatatuiRuby::Tea::Cmd.quit]
+        [Ractor.make_shareable({ output: stdout }), RatatuiRuby::Tea::Command.exit]
       else
         # First event triggers the exec command
-        [m, RatatuiRuby::Tea::Cmd.exec("echo hello", :got_output)]
+        [m, RatatuiRuby::Tea::Command.system("echo hello", :got_output)]
       end
     end
 
@@ -261,7 +261,7 @@ class TestRuntime < Minitest::Test
     assert_equal "hello", received_stdout
   end
 
-  def test_update_receives_message_from_failed_cmd
+  def test_update_receives_message_from_failed_command
     model = { error: nil }.freeze
     received_stderr = nil
 
@@ -271,9 +271,9 @@ class TestRuntime < Minitest::Test
       in [:ran_cmd, { stderr:, status: }] if status != 0
         received_stderr = stderr
         assert Ractor.shareable?(msg), "Background message must be Ractor-shareable"
-        [Ractor.make_shareable({ error: stderr }), RatatuiRuby::Tea::Cmd.quit]
+        [Ractor.make_shareable({ error: stderr }), RatatuiRuby::Tea::Command.exit]
       else
-        [m, RatatuiRuby::Tea::Cmd.exec("false", :ran_cmd)]
+        [m, RatatuiRuby::Tea::Command.system("false", :ran_cmd)]
       end
     end
 
@@ -291,7 +291,7 @@ class TestRuntime < Minitest::Test
     assert_equal "command failed\n", received_stderr
   end
 
-  def test_runtime_executes_cmd_exec_success_with_stderr_noise
+  def test_runtime_executes_command_system_success_with_stderr_noise
     # Some programs write output to stdout AND noise/warnings to stderr on success
     model = { output: nil, noise: nil }.freeze
     received_stdout = nil
@@ -303,9 +303,9 @@ class TestRuntime < Minitest::Test
       in [:ran_cmd, { stdout:, stderr:, status: 0 }]
         received_stdout = stdout
         received_stderr = stderr
-        [Ractor.make_shareable({ output: stdout, noise: stderr }), RatatuiRuby::Tea::Cmd.quit]
+        [Ractor.make_shareable({ output: stdout, noise: stderr }), RatatuiRuby::Tea::Command.exit]
       else
-        [m, RatatuiRuby::Tea::Cmd.exec("compiler --verbose", :ran_cmd)]
+        [m, RatatuiRuby::Tea::Command.system("compiler --verbose", :ran_cmd)]
       end
     end
 
@@ -332,11 +332,11 @@ class TestRuntime < Minitest::Test
       case msg
       in [:parent, :inner_done, { stdout:, status: 0 }]
         received_msg = msg
-        [Ractor.make_shareable({ output: stdout }), RatatuiRuby::Tea::Cmd.quit]
+        [Ractor.make_shareable({ output: stdout }), RatatuiRuby::Tea::Command.exit]
       else
         # First event triggers the mapped command
-        inner_cmd = RatatuiRuby::Tea::Cmd.exec("echo hello", :inner_done)
-        mapped_cmd = RatatuiRuby::Tea::Cmd.map(inner_cmd) { |m| [:parent, *m] }
+        inner_cmd = RatatuiRuby::Tea::Command.system("echo hello", :inner_done)
+        mapped_cmd = RatatuiRuby::Tea::Command.map(inner_cmd) { |m| [:parent, *m] }
         [m, mapped_cmd]
       end
     end

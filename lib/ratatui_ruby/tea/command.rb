@@ -19,18 +19,18 @@ module RatatuiRuby
     # === Examples
     #
     #   # Terminate the application
-    #   [model, Cmd.quit]
+    #   [model, Command.exit]
     #
     #   # Run a shell command; produces [:got_files, {stdout:, stderr:, status:}]
-    #   [model, Cmd.exec("ls -la", :got_files)]
+    #   [model, Command.system("ls -la", :got_files)]
     #
     #   # No side effect
     #   [model, nil]
-    module Cmd
+    module Command
       # Sentinel value for application termination.
       #
       # The runtime detects this before dispatching. It breaks the loop immediately.
-      Quit = Data.define
+      Exit = Data.define
 
       # Creates a quit command.
       #
@@ -38,16 +38,16 @@ module RatatuiRuby
       #
       # === Example
       #
-      #   def update(msg, model)
-      #     case msg
+      #   def update(message, model)
+      #     case message
       #     in { type: :key, code: "q" }
-      #       [model, Cmd.quit]
+      #       [model, Command.exit]
       #     else
       #       [model, nil]
       #     end
       #   end
-      def self.quit
-        Quit.new
+      def self.exit
+        Exit.new
       end
 
       # Command to run a shell command via Open3.
@@ -56,7 +56,7 @@ module RatatuiRuby
       # <tt>[tag, {stdout:, stderr:, status:}]</tt>
       #
       # The +status+ is the integer exit code (0 = success).
-      Exec = Data.define(:command, :tag)
+      System = Data.define(:command, :tag)
 
       # Creates a shell execution command.
       #
@@ -69,27 +69,46 @@ module RatatuiRuby
       # === Example
       #
       #   # Return this from update:
-      #   [model.with(loading: true), Cmd.exec("ls -la", :got_files)]
+      #   [model.with(loading: true), Command.system("ls -la", :got_files)]
       #
       #   # Then handle it later:
-      #   def update(msg, model)
-      #     case msg
+      #   def update(message, model)
+      #     case message
       #     in [:got_files, {stdout:, status: 0}]
       #       [model.with(files: stdout.lines), nil]
       #     in [:got_files, {stderr:, status:}]
       #       [model.with(error: stderr), nil]
       #     end
       #   end
-      def self.exec(command, tag)
-        Exec.new(command:, tag:)
+      def self.system(command, tag)
+        System.new(command:, tag:)
       end
 
-      # Wraps a command to transform its result message.
-      Mapped = Data.define(:inner_cmd, :mapper)
+      # Command that wraps another command's result with a transformation.
+      #
+      # Fractal Architecture requires composition. Child components produce commands.
+      # Parent components need to route child results back to themselves. +Mapped+
+      # wraps a child command and transforms its result message into a parent message.
+      Mapped = Data.define(:inner_command, :mapper)
 
-      # Creates a mapped command.
-      def self.map(inner_cmd, &mapper)
-        Mapped.new(inner_cmd:, mapper:)
+      # Creates a mapped command for Fractal Architecture composition.
+      #
+      # Wraps an inner command. When the inner command completes, the +mapper+ block
+      # transforms the result into a parent message. This prevents monolithic update
+      # functions (the "God Reducer" anti-pattern).
+      #
+      # [inner_command] The child command to wrap.
+      # [mapper] Block that transforms child message to parent message.
+      #
+      # === Example
+      #
+      #   # Child returns Command.execute that produces [:got_files, {...}]
+      #   child_command = Command.system("ls", :got_files)
+      #
+      #   # Parent wraps to route as [:sidebar, :got_files, {...}]
+      #   parent_command = Command.map(child_command) { |child_result| [:sidebar, *child_result] }
+      def self.map(inner_command, &mapper)
+        Mapped.new(inner_command:, mapper:)
       end
     end
   end
