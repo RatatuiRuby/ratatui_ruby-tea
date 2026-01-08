@@ -1,0 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Kerrick Long <me@kerricklong.com>
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
+[tools]
+ruby = "4.0.0"
+python = "3.12"
+pre-commit = "latest"

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Kerrick Long <me@kerricklong.com>
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
+set -euo pipefail
+IFS=$'\n\t'
+set -vx
+
+if command -v mise >/dev/null 2>&1; then
+  mise install
+  mise x -- pip install reuse
+  mise x -- bundle install
+  pre-commit install
+  mise x -- reuse download --all
+  bundle exec rake sourcehut
+  bundle exec rake rdoc
+else
+  echo "mise isn't installed. Please install it to continue." >&2
+  exit 1
+fi

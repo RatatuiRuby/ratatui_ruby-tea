@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2020 Free Software Foundation Europe e.V.
+# SPDX-License-Identifier: CC0-1.0
+repos:
+  - repo: local
+    hooks:
+      -   id: bundle-check
+          name: Check Gemfile.lock
+          entry: bundle check
+          language: system
+          files: (Gemfile|Gemfile\.lock|ratatui_ruby-tea\.gemspec)
+          pass_filenames: false
+      -   id: rake
+          name: rake
+          entry: bundle exec rake
+          language: system
+          pass_filenames: false
