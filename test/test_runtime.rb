@@ -80,4 +80,19 @@ class TestRuntime < Minitest::Test
     # The model should still be the 2-element array, not destructured
     assert_equal [:item1, :item2], received_model, "array model should not be confused with [model, cmd] tuple"
   end
+
+  def test_update_can_return_cmd_only
+    model = { count: 0 }.freeze
+    received_model = nil
+
+    view = -> (m, _t) { received_model = m; nil }
+    update = -> (_msg, _m) { RatatuiRuby::Tea::Cmd.quit }
+
+    with_test_terminal do
+      inject_key("a")
+      RatatuiRuby::Tea::Runtime.run(model:, view:, update:)
+    end
+
+    assert_same model, received_model, "model should be preserved when update returns Cmd only"
+  end
 end

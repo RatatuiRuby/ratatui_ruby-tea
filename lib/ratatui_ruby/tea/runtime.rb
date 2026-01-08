@@ -47,27 +47,26 @@ module RatatuiRuby
             tui.draw { |frame| frame.render_widget(view.call(model, tui), frame.area) }
             msg = tui.poll_event
             result = update.call(msg, model)
-            model, cmd = normalize_update_result(result)
+            model, cmd = normalize_update_result(result, model)
             break if cmd.is_a?(Cmd::Quit)
           end
         end
       end
 
-      # Detects whether +result+ is a +[model, cmd]+ tuple or a plain model.
+      # Detects whether +result+ is a +[model, cmd]+ tuple, a plain model, or a Cmd alone.
       #
-      # Returns +[model, cmd]+ in either case.
-      def self.normalize_update_result(result)
+      # Returns +[model, cmd]+ in all cases.
+      private_class_method def self.normalize_update_result(result, previous_model)
         return result if result.is_a?(Array) && result.size == 2 && valid_cmd?(result[1])
+        return [previous_model, result] if valid_cmd?(result)
 
         [result, nil]
       end
-      private_class_method :normalize_update_result
 
       # Returns +true+ if +value+ is a valid command (+nil+ or a +Cmd+ type).
-      def self.valid_cmd?(value)
+      private_class_method def self.valid_cmd?(value)
         value.nil? || value.class.name&.start_with?("RatatuiRuby::Tea::Cmd::")
       end
-      private_class_method :valid_cmd?
     end
   end
 end
