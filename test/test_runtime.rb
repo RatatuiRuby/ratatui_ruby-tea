@@ -95,4 +95,24 @@ class TestRuntime < Minitest::Test
 
     assert_same model, received_model, "model should be preserved when update returns Cmd only"
   end
+
+  def test_update_can_return_nil
+    model = { count: 0 }.freeze
+    received_model = nil
+    call_count = 0
+
+    view = -> (m, _t) { received_model = m; nil }
+    update = -> (_msg, _m) do
+      call_count += 1
+      (call_count >= 2) ? RatatuiRuby::Tea::Cmd.quit : nil
+    end
+
+    with_test_terminal do
+      inject_key("a")
+      inject_key("b")
+      RatatuiRuby::Tea::Runtime.run(model:, view:, update:)
+    end
+
+    assert_same model, received_model, "model should be preserved when update returns nil"
+  end
 end

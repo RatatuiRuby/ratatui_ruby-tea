@@ -18,16 +18,16 @@ Description: Part of the RatatuiRuby ecosystem.
 - Every file MUST begin with an SPDX-compliant header. Use `LGPL-3.0-or-later` for code; `CC-BY-SA-4.0` for documentation. `reuse annotate` can help you generate the header. **For Ruby files**, wrap SPDX comments in `#--` / `#++` to hide them from RDoc output.
 - Every line of Ruby MUST be covered by tests that would stand up to mutation testing.
   - Tests must be meaningful and verify specific behavior or rendering output; simply verifying that code "doesn't crash" is insufficient and unacceptable.
-- **Pre-commit:** Use `agent_rake` to ensure commit-readiness. See Tools for detailed instructions.
+- **Pre-commit:** Use `bundle exec agent_rake` to ensure commit-readiness. See Tools for detailed instructions.
 - **Git Pager:** ALWAYS set `PAGER=cat` for ALL `git` commands (e.g., `PAGER=cat git diff`). This is mandatory.
 
 ### Tools
 
 - **NEVER** run `bundle exec rake` directly. **NEVER** run `bundle exec ruby -Ilib:test ...` directly.
-- **ALWAYS use `agent_rake`** (provided by the `ratatui_ruby-devtools` gem) for running tests, linting, or checking compilation.
+- **ALWAYS use `bundle exec agent_rake`** (provided by the `ratatui_ruby-devtools` gem) for running tests, linting, or checking compilation.
   - **Usage:**
-    - Runs default task (compile + test + lint): `agent_rake`
-    - Runs specific task: `agent_rake test:ruby` (for example)
+    - Runs default task (compile + test + lint): `bundle exec agent_rake`
+    - Runs specific task: `bundle exec agent_rake test:ruby` (for example)
 - **Setup:** `bin/setup` must handle Bundler dependencies.
 - **Git:** ALWAYS set `PAGER=cat` with `git`. **THIS IS CRITICAL!**
 
@@ -50,7 +50,7 @@ Description: Part of the RatatuiRuby ecosystem.
 
 Before considering a task complete:
 
-1. **Default Rake Task Passes:** Run `agent_rake` (no args). Confirm it passes with ZERO errors.
+1. **Default Rake Task Passes:** Run `bundle exec agent_rake` (no args). Confirm it passes with ZERO errors.
 2. **Documentation Updated:** If public APIs changed, update relevant docs.
 3. **Changelog Updated:** If public APIs changed, update CHANGELOG.md's **Unreleased** section.
 4. **Commit Message Suggested:** Include a suggested commit message block.
