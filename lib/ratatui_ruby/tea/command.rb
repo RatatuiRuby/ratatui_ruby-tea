@@ -86,8 +86,8 @@ module RatatuiRuby
 
       # Command that wraps another command's result with a transformation.
       #
-      # Fractal Architecture requires composition. Child components produce commands.
-      # Parent components need to route child results back to themselves. +Mapped+
+      # Fractal Architecture requires composition. Children produce commands.
+      # Parents need to route child results back to themselves. +Mapped+
       # wraps a child command and transforms its result message into a parent message.
       Mapped = Data.define(:inner_command, :mapper)
 

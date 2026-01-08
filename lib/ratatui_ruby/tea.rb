@@ -26,5 +26,62 @@ module RatatuiRuby # :nodoc: Documented in the ratatui_ruby gem.
     def self.run(...)
       Runtime.run(...)
     end
+
+    # Wraps a command with a routing prefix.
+    #
+    # Parents trigger child commands. The results need routing back
+    # to the correct child. Manually wrapping every command is tedious.
+    #
+    # This method prefixes command results automatically. Use it to route
+    # child command results in Fractal Architecture.
+    #
+    # [command] The child command to wrap.
+    # [prefix] Symbol prepended to results (e.g., <tt>:stats</tt>).
+    #
+    # === Example
+    #
+    #   # Verbose:
+    #   Command.map(widget.fetch_command) { |r| [:stats, *r] }
+    #
+    #   # Concise:
+    #   Tea.route(widget.fetch_command, :stats)
+    def self.route(command, prefix)
+      Command.map(command) { |result| [prefix, *result] }
+    end
+
+    # Delegates a prefixed message to a child UPDATE.
+    #
+    # Parent UPDATE functions route messages to children. Each route requires
+    # pattern matching, calling the child, and rewrapping any returned command.
+    # The boilerplate adds up fast.
+    #
+    # This method handles the dispatch. It checks the prefix, calls the child,
+    # and wraps any command. Returns <tt>nil</tt> if the prefix does not match.
+    #
+    # [message] Incoming message (e.g., <tt>[:stats, :system_info, {...}]</tt>).
+    # [prefix] Expected prefix symbol (e.g., <tt>:stats</tt>).
+    # [child_update] The child's UPDATE callable.
+    # [child_model] The child's current model.
+    #
+    # === Example
+    #
+    #   # Verbose:
+    #   case message
+    #   in [:stats, *rest]
+    #     new_child, cmd = StatsPanel::UPDATE.call(rest, model.stats)
+    #     mapped = cmd ? Command.map(cmd) { |r| [:stats, *r] } : nil
+    #     [new_child, mapped]
+    #   end
+    #
+    #   # Concise:
+    #   Tea.delegate(message, :stats, StatsPanel::UPDATE, model.stats)
+    def self.delegate(message, prefix, child_update, child_model)
+      return nil unless message.is_a?(Array) && message.first == prefix
+
+      rest = message[1..]
+      new_child, command = child_update.call(rest, child_model)
+      wrapped = command ? route(command, prefix) : nil
+      [new_child, wrapped]
+    end
   end
 end

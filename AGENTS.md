@@ -31,6 +31,11 @@ Description: Part of the RatatuiRuby ecosystem.
 - **Setup:** `bin/setup` must handle Bundler dependencies.
 - **Git:** ALWAYS set `PAGER=cat` with `git`. **THIS IS CRITICAL!**
 
+### Tea-Specific Vocabulary
+
+- **BANNED WORD: "component"** — Reserved for Kit. In Tea, use "parent" and "child" for hierarchical relationships.
+- Use "model", "update", "view" for the MVU pattern. Use "message" (not "msg") and "command" (not "cmd").
+
 ### Ruby Standards
 
 - Use `Data.define` for all value objects (Ruby 3.2+).
