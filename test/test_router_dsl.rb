@@ -145,4 +145,96 @@ class TestRouterDsl < Minitest::Test
     # Verify it delegated and returned updated model
     refute_nil new_model
   end
+
+  # keymap key accepts when: guard that prevents handler execution when false
+  def test_keymap_key_when_guard_prevents_execution
+    handler_called = false
+    guard_proc = -> (model) { model[:allowed] }
+
+    test_class = Class.new do
+      include RatatuiRuby::Tea::Router
+
+      keymap do
+        key "x", -> { handler_called = true; nil }, when: guard_proc
+      end
+    end
+
+    update = test_class.from_router
+
+    model = { allowed: false }.freeze
+    event = RatatuiRuby::Event::Key.new(code: "x")
+
+    _new_model, _cmd = update.call(event, model)
+
+    refute handler_called, "Handler should not be called when guard returns false"
+  end
+
+  # when: guard allows handler execution when true
+  def test_keymap_key_when_guard_allows_execution
+    handler_called = false
+    guard_proc = -> (model) { model[:allowed] }
+
+    test_class = Class.new do
+      include RatatuiRuby::Tea::Router
+
+      keymap do
+        key "x", -> { handler_called = true; nil }, when: guard_proc
+      end
+    end
+
+    update = test_class.from_router
+
+    model = { allowed: true }.freeze
+    event = RatatuiRuby::Event::Key.new(code: "x")
+
+    _new_model, _cmd = update.call(event, model)
+
+    assert handler_called, "Handler should be called when guard returns true"
+  end
+
+  # if: is an alias for when:
+  def test_keymap_key_if_alias_for_when
+    handler_called = false
+    guard_proc = -> (model) { model[:allowed] }
+
+    test_class = Class.new do
+      include RatatuiRuby::Tea::Router
+
+      keymap do
+        key "x", -> { handler_called = true; nil }, if: guard_proc
+      end
+    end
+
+    update = test_class.from_router
+
+    model = { allowed: false }.freeze
+    event = RatatuiRuby::Event::Key.new(code: "x")
+
+    _new_model, _cmd = update.call(event, model)
+
+    refute handler_called, "Handler should not be called when if: guard returns false"
+  end
+
+  # unless: is a negative alias (runs when guard is false)
+  def test_keymap_key_unless_runs_when_guard_false
+    handler_called = false
+    guard_proc = -> (model) { model[:blocked] }
+
+    test_class = Class.new do
+      include RatatuiRuby::Tea::Router
+
+      keymap do
+        key "x", -> { handler_called = true; nil }, unless: guard_proc
+      end
+    end
+
+    update = test_class.from_router
+
+    model = { blocked: false }.freeze
+    event = RatatuiRuby::Event::Key.new(code: "x")
+
+    _new_model, _cmd = update.call(event, model)
+
+    assert handler_called, "Handler should run when unless: guard returns false"
+  end
 end

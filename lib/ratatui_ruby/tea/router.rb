@@ -143,6 +143,11 @@ module RatatuiRuby
                 predicate = :"#{key_name}?"
                 next unless message.respond_to?(predicate) && message.public_send(predicate)
 
+                # Check guard if present
+                if (config[:guard]) && !config[:guard].call(model)
+                  next
+                end
+
                 handler = config[:handler] || my_actions[config[:action]]
                 command = handler.call
                 if config[:route]
@@ -200,7 +205,9 @@ module RatatuiRuby
         # [key_name] String or Symbol for the key (normalized via +.to_s+).
         # [handler_or_action] Callable or Symbol (action name).
         # [route] Optional route prefix for the command result.
-        def key(key_name, handler_or_action, route: nil)
+        # [when/if/only/guard] Guard that runs if truthy (aliases).
+        # [unless/except/skip] Guard that runs if falsy (negative aliases).
+        def key(key_name, handler_or_action, route: nil, when: nil, if: nil, only: nil, guard: nil, unless: nil, except: nil, skip: nil)
           entry = {}
           if handler_or_action.is_a?(Symbol)
             entry[:action] = handler_or_action
@@ -208,6 +215,21 @@ module RatatuiRuby
             entry[:handler] = handler_or_action
           end
           entry[:route] = route if route
+
+          # Positive guards (when, if, only, guard)
+          positive = binding.local_variable_get(:when) ||
+            binding.local_variable_get(:if) ||
+            only ||
+            guard
+          entry[:guard] = positive if positive
+
+          # Negative guards (unless, except, skip) - wrap to invert
+          negative = binding.local_variable_get(:unless) || except || skip
+          if negative
+            original = negative
+            entry[:guard] = -> (model) { !original.call(model) }
+          end
+
           @handlers[key_name.to_s] = entry
         end
       end

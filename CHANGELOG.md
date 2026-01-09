@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Router DSL**: New `Tea::Router` module provides declarative routing for Fractal Architecture:
   - `route :prefix, to: ChildBag` — declares a child bag route
   - `keymap { key "q", -> { Command.exit } }` — declares keyboard handlers
+  - `keymap { key "x", handler, when: ->(m) { m.ready? } }` — guards (also: `if:`, `only:`, `guard:`, `unless:`, `except:`, `skip:`)
   - `mousemap { click -> (x, y) { ... } }` — declares mouse handlers
   - `action :name, handler` — declares reusable actions for key/mouse handlers
   - `from_router` — generates an UPDATE lambda from routes and handlers

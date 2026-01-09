@@ -1,0 +1,99 @@
+#--
+# SPDX-FileCopyrightText: 2026 Kerrick Long <me@kerricklong.com>
+# SPDX-License-Identifier: LGPL-3.0-or-later
+#++
+
+module RatatuiRuby
+  module Tea
+    # Interface for child bag modules (required by route).
+    interface _Bag[M]
+      def self.UPDATE: ^(top, M) -> [M, Command::execution?]
+      def self.INITIAL: M
+    end
+
+    # Declarative DSL for Fractal Architecture.
+    module Router
+      def self.included: (Class base) -> void
+
+      # Guard callable: receives model, returns truthy/falsy.
+      type guard[M] = ^(M model) -> boolish
+
+      # Handler callable: returns a command or nil.
+      type handler = ^() -> Command::execution?
+
+      # Click handler: receives x, y coordinates.
+      type click_handler = ^(Integer x, Integer y) -> Command::execution?
+
+      # Key handler config stored in handlers hash.
+      type key_config[M] = {
+        handler: handler?,
+        action: Symbol?,
+        route: Symbol?,
+        guard: guard[M]?
+      }
+
+      # Mouse handler config.
+      type mouse_config = {
+        handler: handler | click_handler,
+        action: Symbol?
+      }
+
+      # Class methods added when Router is included.
+      module ClassMethods
+        def route: [M] (Symbol | String prefix, to: _Bag[M]) -> void
+        def routes: () -> Hash[Symbol, Module]
+
+        def action: (Symbol | String name, handler) -> void
+        def actions: () -> Hash[Symbol, handler]
+
+        def keymap: () { () -> void } -> void
+        def key_handlers: [M] () -> Hash[String, key_config[M]]
+
+        def mousemap: () { () -> void } -> void
+        def mouse_handlers: () -> Hash[Symbol, mouse_config]
+
+        # Generates an UPDATE lambda from routes, keymap, and mousemap.
+        def from_router: [M, Msg] () -> ^(Msg message, M model) -> [M, Command::execution?]
+      end
+
+      # Builder for keymap DSL.
+      class KeymapBuilder
+        @handlers: Hash[String, key_config[top]]
+
+        attr_reader handlers: Hash[String, key_config[top]]
+
+        def initialize: () -> void
+
+        # Registers a key handler with optional guards.
+        def key: [M] (
+          String | Symbol key_name,
+          handler | Symbol handler_or_action,
+          ?route: Symbol?,
+          ?when: guard[M]?,
+          ?if: guard[M]?,
+          ?only: guard[M]?,
+          ?guard: guard[M]?,
+          ?unless: guard[M]?,
+          ?except: guard[M]?,
+          ?skip: guard[M]?
+        ) -> void
+      end
+
+      # Builder for mousemap DSL.
+      class MousemapBuilder
+        @handlers: Hash[Symbol, mouse_config]
+
+        attr_reader handlers: Hash[Symbol, mouse_config]
+
+        def initialize: () -> void
+
+        def click: (click_handler | Symbol handler_or_action) -> void
+        def scroll: (:up | :down direction, handler | Symbol handler_or_action) -> void
+
+        private
+
+        def register: (Symbol key, handler | click_handler | Symbol handler_or_action) -> void
+      end
+    end
+  end
+end

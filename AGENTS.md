@@ -57,6 +57,7 @@ Description: Part of the RatatuiRuby ecosystem.
 
 Before considering a task complete:
 
+0. **Production Ready:** RBS types are complete and accurate (no `untyped`), errors are handled with good DX, documentation follows guidelines, high code quality (no "pre-existing debt" excuses).
 1. **Default Rake Task Passes:** Run `bundle exec agent_rake` (no args). Confirm it passes with ZERO errors.
 2. **Documentation Updated:** If public APIs changed, update relevant docs.
 3. **Changelog Updated:** If public APIs changed, update CHANGELOG.md's **Unreleased** section.
