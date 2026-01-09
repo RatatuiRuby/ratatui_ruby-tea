@@ -17,13 +17,13 @@ module NetworkPanel
     uptime: Uptime::INITIAL
   )
 
-  VIEW = lambda do |model, tui|
+  VIEW = lambda do |model, tui, disabled: false|
     tui.layout(
       direction: :horizontal,
       constraints: [tui.constraint_percentage(50), tui.constraint_percentage(50)],
       children: [
-        Ping::VIEW.call(model.ping, tui),
-        Uptime::VIEW.call(model.uptime, tui),
+        Ping::VIEW.call(model.ping, tui, disabled:),
+        Uptime::VIEW.call(model.uptime, tui, disabled:),
       ]
     )
   end

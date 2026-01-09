@@ -24,13 +24,19 @@ module DashboardRouter
   route :stats, to: StatsPanel
   route :network, to: NetworkPanel
 
+  # Guard: only handle keys when modal is not active
+  MODAL_INACTIVE = -> (model) { !CustomShellModal.active?(model.shell_modal) }
+
   keymap do
-    key "q", -> { Command.exit }
     key :ctrl_c, -> { Command.exit }
-    key "s", -> { SystemInfo.fetch_command }, route: :stats
-    key "d", -> { DiskUsage.fetch_command }, route: :stats
-    key "p", -> { Ping.fetch_command }, route: :network
-    key "u", -> { Uptime.fetch_command }, route: :network
+    only when: MODAL_INACTIVE do
+      key :q, -> { Command.exit }
+      key :s, -> { SystemInfo.fetch_command }
+      key :d, -> { DiskUsage.fetch_command }
+      key :p, -> { Ping.fetch_command }
+      key :u, -> { Uptime.fetch_command }
+      key :c, -> { CustomShellModal.open }
+    end
   end
 
   UPDATE = from_router

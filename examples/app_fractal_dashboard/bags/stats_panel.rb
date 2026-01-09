@@ -17,13 +17,13 @@ module StatsPanel
     disk_usage: DiskUsage::INITIAL
   )
 
-  VIEW = lambda do |model, tui|
+  VIEW = lambda do |model, tui, disabled: false|
     tui.layout(
       direction: :horizontal,
       constraints: [tui.constraint_percentage(50), tui.constraint_percentage(50)],
       children: [
-        SystemInfo::VIEW.call(model.system_info, tui),
-        DiskUsage::VIEW.call(model.disk_usage, tui),
+        SystemInfo::VIEW.call(model.system_info, tui, disabled:),
+        DiskUsage::VIEW.call(model.disk_usage, tui, disabled:),
       ]
     )
   end

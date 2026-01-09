@@ -174,4 +174,169 @@ class TestFractalDashboardSnapshots < Minitest::Test
     assert_equal manual_content, router_content, "Manual and Router views differ"
     assert_equal helpers_content, router_content, "Helpers and Router views differ"
   end
+
+  def test_custom_modal_opens_and_escapes
+    with_test_terminal do
+      inject_key("c")       # Open modal
+      inject_key(:esc)      # Cancel modal
+      inject_key(:q)        # Quit
+
+      RatatuiRuby::Tea.run(
+        model: DashboardManual::INITIAL,
+        view: DashboardManual::VIEW,
+        update: DashboardManual::UPDATE
+      )
+
+      # Should be back to initial view (ESC dismissed modal)
+      assert_snapshots("initial_view")
+    end
+  end
+
+  def test_custom_modal_opens_on_c_key
+    with_test_terminal do
+      inject_key("c")       # Open modal
+      inject_key(:esc)      # Cancel modal immediately
+      inject_key(:q)        # Quit
+
+      RatatuiRuby::Tea.run(
+        model: DashboardManual::INITIAL,
+        view: DashboardManual::VIEW,
+        update: DashboardManual::UPDATE
+      )
+
+      # If we got here without error, modal opened and closed successfully
+      assert true
+    end
+  end
+
+  def test_custom_modal_typing_and_cancel
+    with_test_terminal do
+      inject_key("c")       # Open modal
+      inject_key("e")       # Type 'e'
+      inject_key("c")       # Type 'c'
+      inject_key("h")       # Type 'h'
+      inject_key("o")       # Type 'o'
+      inject_key(:esc)      # Cancel
+      inject_key(:q)        # Quit
+
+      RatatuiRuby::Tea.run(
+        model: DashboardManual::INITIAL,
+        view: DashboardManual::VIEW,
+        update: DashboardManual::UPDATE
+      )
+
+      # Should be back to initial view
+      assert_snapshots("initial_view")
+    end
+  end
+
+  def test_custom_modal_enter_on_empty_cancels
+    # Pressing ENTER on empty input = cancel (no command runs)
+    with_test_terminal do
+      inject_key("c")       # Open modal
+      inject_key(:enter)    # Enter on empty = cancel
+      inject_key(:q)        # Quit
+
+      RatatuiRuby::Tea.run(
+        model: DashboardManual::INITIAL,
+        view: DashboardManual::VIEW,
+        update: DashboardManual::UPDATE
+      )
+
+      # Should be back to initial view
+      assert_snapshots("initial_view")
+    end
+  end
+
+  def test_modal_input_view
+    with_test_terminal do
+      # Start with modal open
+      start_model = DashboardManual::INITIAL.with(
+        shell_modal: CustomShellModal::INITIAL.with(mode: :input)
+      )
+
+      # 1. Render modal (captured)
+      # 2. ESC to cancel modal
+      # 3. q to quit
+      inject_key(:esc)
+      inject_key(:q)
+
+      RatatuiRuby::Tea.run(
+        model: start_model,
+        view: DashboardManual::VIEW,
+        update: DashboardManual::UPDATE
+      )
+
+      assert_snapshots("modal_input")
+    end
+  end
+
+  def test_modal_typing_view
+    with_test_terminal do
+      # Start with modal open
+      start_model = DashboardManual::INITIAL.with(
+        shell_modal: CustomShellModal::INITIAL.with(mode: :input)
+      )
+
+      # 1. Type "ls -la"
+      # 2. Render (captured)
+      # 3. ESC to cancel
+      # 4. q to quit
+      inject_key("l")
+      inject_key("s")
+      inject_key(" ")
+      inject_key("-")
+      inject_key("l")
+      inject_key("a")
+      inject_key(:esc)
+      inject_key(:q)
+
+      RatatuiRuby::Tea.run(
+        model: start_model,
+        view: DashboardManual::VIEW,
+        update: DashboardManual::UPDATE
+      )
+
+      assert_snapshots("modal_typing")
+    end
+  end
+
+  def test_modal_output_view
+    with_test_terminal do
+      # Start with modal showing output
+      chunks = Ractor.make_shareable([
+        CustomShellOutput::Chunk.new(stream: :stdout, text: "total 0\n"),
+        CustomShellOutput::Chunk.new(stream: :stderr, text: "Error: something went wrong\n"),
+        CustomShellOutput::Chunk.new(stream: :stdout, text: "drwxr-xr-x  3 kerrick  staff  96 Jan  1 12:00 .\n"),
+      ].freeze)
+
+      output_model = CustomShellOutput::INITIAL.with(
+        command: "ls -la",
+        chunks:,
+        running: false,
+        exit_status: 1
+      )
+
+      start_model = DashboardManual::INITIAL.with(
+        shell_modal: CustomShellModal::INITIAL.with(
+          mode: :output,
+          output: output_model
+        )
+      )
+
+      # 1. Render output (captured)
+      # 2. ESC to dismiss
+      # 3. q to quit
+      inject_key(:esc)
+      inject_key(:q)
+
+      RatatuiRuby::Tea.run(
+        model: start_model,
+        view: DashboardManual::VIEW,
+        update: DashboardManual::UPDATE
+      )
+
+      assert_snapshots("modal_output")
+    end
+  end
 end

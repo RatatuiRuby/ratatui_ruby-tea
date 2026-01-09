@@ -21,7 +21,20 @@ module DashboardHelpers
   VIEW = DashboardBase::VIEW
 
   UPDATE = lambda do |message, model|
-    # Try routing to child bags first
+    # Global Force Quit
+    return [model, RatatuiRuby::Tea::Command.exit] if message.respond_to?(:ctrl_c?) && message.ctrl_c?
+
+    # IMPORTANT: Route command results BEFORE modal intercept.
+    # Async command results must always reach their destination, even when a
+    # modal is active. Only user input (keys/mouse) should be blocked.
+
+    # Route streaming command output to modal
+    if (result = Tea.delegate(message, :shell_output, CustomShellModal::UPDATE, model.shell_modal))
+      new_modal, command = result
+      return [model.with(shell_modal: new_modal), command]
+    end
+
+    # Route to child bags
     if (result = Tea.delegate(message, :stats, StatsPanel::UPDATE, model.stats))
       new_child, command = result
       return [model.with(stats: new_child), command && Tea.route(command, :stats)]
@@ -32,10 +45,19 @@ module DashboardHelpers
       return [model.with(network: new_child), command && Tea.route(command, :network)]
     end
 
+    # Modal intercepts user input (not command results)
+    if CustomShellModal.active?(model.shell_modal)
+      new_modal, command = CustomShellModal::UPDATE.call(message, model.shell_modal)
+      return [model.with(shell_modal: new_modal), command]
+    end
+
     # Handle user input
     case message
     in _ if message.q? || message.ctrl_c?
       Command.exit
+
+    in _ if message.c?
+      [model.with(shell_modal: CustomShellModal.open), nil]
 
     in _ if message.s?
       command = Tea.route(SystemInfo.fetch_command, :stats)

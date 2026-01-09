@@ -13,9 +13,15 @@ module DiskUsage
   Model = Data.define(:output, :loading)
   INITIAL = Model.new(output: "Press 'd' for disk usage", loading: false)
 
-  VIEW = lambda do |model, tui|
+  VIEW = lambda do |model, tui, disabled: false|
+    text_style = if disabled && model.output == INITIAL.output
+      tui.style(fg: :dark_gray)
+    else
+      nil
+    end
+
     tui.paragraph(
-      text: model.output,
+      text: tui.text_span(content: model.output, style: text_style),
       block: tui.block(title: "Disk Usage", borders: [:all], border_style: { fg: :cyan })
     )
   end

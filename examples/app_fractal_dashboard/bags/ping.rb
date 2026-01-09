@@ -13,10 +13,16 @@ module Ping
   Model = Data.define(:output, :loading)
   INITIAL = Model.new(output: "Press 'p' for ping", loading: false)
 
-  VIEW = lambda do |model, tui|
+  VIEW = lambda do |model, tui, disabled: false|
+    text_style = if disabled && model.output == INITIAL.output
+      tui.style(fg: :dark_gray)
+    else
+      nil
+    end
+
     tui.paragraph(
-      text: model.output,
-      block: tui.block(title: "Ping", borders: [:all], border_style: { fg: :green })
+      text: tui.text_span(content: model.output, style: text_style),
+      block: tui.block(title: "Ping", borders: [:all], border_style: { fg: :magenta })
     )
   end
 
