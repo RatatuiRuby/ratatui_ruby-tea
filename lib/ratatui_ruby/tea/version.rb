@@ -9,6 +9,6 @@ module RatatuiRuby # :nodoc: Documented in the ratatui_ruby gem.
   module Tea
     # The version of this gem.
     # See https://semver.org/spec/v2.0.0.html
-    VERSION = "0.2.0"
+    VERSION = "0.3.0"
   end
 end
