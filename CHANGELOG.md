@@ -18,7 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Router DSL**: New `Tea::Router` module provides declarative routing for Fractal Architecture:
   - `route :prefix, to: ChildBag` — declares a child bag route
   - `keymap { key "q", -> { Command.exit } }` — declares keyboard handlers
-  - `keymap { key "x", handler, when: ->(m) { m.ready? } }` — guards (also: `if:`, `only:`, `guard:`, `unless:`, `except:`, `skip:`)
+  - `keymap { key "x", handler, when: -> (m) { m.ready? } }` — guards (also: `if:`, `only:`, `guard:`, `unless:`, `except:`, `skip:`)
+  - `keymap { only when: guard do ... end }` — nested guard blocks apply to all keys within (also: `skip when: ...`)
   - `mousemap { click -> (x, y) { ... } }` — declares mouse handlers
   - `action :name, handler` — declares reusable actions for key/mouse handlers
   - `from_router` — generates an UPDATE lambda from routes and handlers
@@ -37,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sync Event Integration**: Runtime now handles `Event::Sync` from `RatatuiRuby::SyntheticEvents`. When a Sync event is received, the runtime waits for all pending async threads and processes their results before continuing. Use `inject_sync` in tests for deterministic async verification.
 
 - **Streaming Command Output**: `Command.system` now accepts a `stream:` keyword argument. When `stream: true`, the runtime sends incremental messages (`[:tag, :stdout, line]`, `[:tag, :stderr, line]`) as output arrives, followed by `[:tag, :complete, {status:}]` when the command finishes. Invalid commands send `[:tag, :error, {message:}]`. Default behavior (`stream: false`) remains unchanged.
+
+- **Custom Shell Modal Example**: Added `examples/app_fractal_dashboard/bags/custom_shell_modal.rb` demonstrating a 3-bag fractal architecture for a modal that runs arbitrary shell commands with streaming output. Features interleaved stdout/stderr, exit status indication, and Ractor-safe implementation using `tui.overlay` for opaque rendering.
 
 ### Changed
 

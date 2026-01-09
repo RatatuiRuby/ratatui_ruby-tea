@@ -237,4 +237,331 @@ class TestRouterDsl < Minitest::Test
 
     assert handler_called, "Handler should run when unless: guard returns false"
   end
+
+  # only: is an alias for when:
+  def test_keymap_key_only_alias_for_when
+    handler_called = false
+    guard_proc = -> (model) { model[:allowed] }
+
+    test_class = Class.new do
+      include RatatuiRuby::Tea::Router
+
+      keymap do
+        key "x", -> { handler_called = true; nil }, only: guard_proc
+      end
+    end
+
+    update = test_class.from_router
+
+    model = { allowed: false }.freeze
+    event = RatatuiRuby::Event::Key.new(code: "x")
+
+    _new_model, _cmd = update.call(event, model)
+
+    refute handler_called, "Handler should not be called when only: guard returns false"
+
+    model = { allowed: true }.freeze
+    _new_model, _cmd = update.call(event, model)
+    assert handler_called, "Handler should be called when only: guard returns true"
+  end
+
+  # skip: is an alias for unless:
+  def test_keymap_key_skip_alias_for_unless
+    handler_called = false
+    guard_proc = -> (model) { model[:blocked] }
+
+    test_class = Class.new do
+      include RatatuiRuby::Tea::Router
+
+      keymap do
+        key "x", -> { handler_called = true; nil }, skip: guard_proc
+      end
+    end
+
+    update = test_class.from_router
+
+    model = { blocked: true }.freeze
+    event = RatatuiRuby::Event::Key.new(code: "x")
+
+    _new_model, _cmd = update.call(event, model)
+
+    refute handler_called, "Handler should not be called when skip: guard returns true"
+
+    model = { blocked: false }.freeze
+    _new_model, _cmd = update.call(event, model)
+    assert handler_called, "Handler should be called when skip: guard returns false"
+  end
+
+  # guard: is an alias for when:
+  def test_keymap_key_guard_alias_for_when
+    handler_called = false
+    guard_proc = -> (model) { model[:allowed] }
+
+    test_class = Class.new do
+      include RatatuiRuby::Tea::Router
+
+      keymap do
+        key "x", -> { handler_called = true; nil }, guard: guard_proc
+      end
+    end
+
+    update = test_class.from_router
+
+    model = { allowed: false }.freeze
+    event = RatatuiRuby::Event::Key.new(code: "x")
+
+    _new_model, _cmd = update.call(event, model)
+
+    refute handler_called, "Handler should not be called when guard: guard returns false"
+
+    model = { allowed: true }.freeze
+    _new_model, _cmd = update.call(event, model)
+    assert handler_called, "Handler should be called when guard: guard returns true"
+  end
+
+  # except: is an alias for unless:
+  def test_keymap_key_except_alias_for_unless
+    handler_called = false
+    guard_proc = -> (model) { model[:blocked] }
+
+    test_class = Class.new do
+      include RatatuiRuby::Tea::Router
+
+      keymap do
+        key "x", -> { handler_called = true; nil }, except: guard_proc
+      end
+    end
+
+    update = test_class.from_router
+
+    model = { blocked: true }.freeze
+    event = RatatuiRuby::Event::Key.new(code: "x")
+
+    _new_model, _cmd = update.call(event, model)
+
+    refute handler_called, "Handler should not be called when except: guard returns true"
+
+    model = { blocked: false }.freeze
+    _new_model, _cmd = update.call(event, model)
+    assert handler_called, "Handler should be called when except: guard returns false"
+  end
+
+  # nested only: block applies guard to all keys within
+  def test_keymap_nested_only_block_prevents_execution
+    handler_called = false
+    guard_proc = -> (model) { model[:allowed] }
+
+    test_class = Class.new do
+      include RatatuiRuby::Tea::Router
+
+      keymap do
+        only guard: guard_proc do
+          key "x", -> { handler_called = true; nil }
+        end
+      end
+    end
+
+    update = test_class.from_router
+
+    model = { allowed: false }.freeze
+    event = RatatuiRuby::Event::Key.new(code: "x")
+    _new_model, _cmd = update.call(event, model)
+    refute handler_called, "Handler should not be called when nested only: guard returns false"
+  end
+
+  def test_keymap_nested_only_block_when_argument
+    handler_called = false
+    guard_proc = -> (model) { model[:allowed] }
+
+    test_class = Class.new do
+      include RatatuiRuby::Tea::Router
+
+      keymap do
+        only when: guard_proc do
+          key "x", -> { handler_called = true; nil }
+        end
+      end
+    end
+
+    update = test_class.from_router
+
+    model = { allowed: false }.freeze
+    event = RatatuiRuby::Event::Key.new(code: "x")
+    # This should fail if when: raises ArgumentError or is ignored
+    begin
+      _new_model, _cmd = update.call(event, model)
+    rescue ArgumentError
+      flunk "ArgumentError raised, likely due to missing keyword argument"
+    end
+    refute handler_called, "Handler should not be called when nested only when: guard returns false"
+  end
+
+  def test_keymap_nested_only_block_allows_only_one_argument
+    guard_proc_one = -> (model) { model[:allowed] }
+    guard_proc_two = -> (model) { model[:allowed] }
+
+    assert_raises ArgumentError do
+      Class.new do
+        include RatatuiRuby::Tea::Router
+
+        keymap do
+          only when: guard_proc_one, guard: guard_proc_two do
+            key "x", -> { puts "this will error" }
+          end
+        end
+      end
+    end
+  end
+
+  def test_keymap_nested_only_block_if_argument
+    handler_called = false
+    guard_proc = -> (model) { model[:allowed] }
+
+    test_class = Class.new do
+      include RatatuiRuby::Tea::Router
+
+      keymap do
+        only if: guard_proc do
+          key "x", -> { handler_called = true; nil }
+        end
+      end
+    end
+
+    update = test_class.from_router
+
+    model = { allowed: false }.freeze
+    event = RatatuiRuby::Event::Key.new(code: "x")
+    _new_model, _cmd = update.call(event, model)
+    refute handler_called, "Handler should not be called when nested only if: guard returns false"
+  end
+
+  def test_keymap_nested_only_block_only_argument
+    handler_called = false
+    guard_proc = -> (model) { model[:allowed] }
+
+    test_class = Class.new do
+      include RatatuiRuby::Tea::Router
+
+      keymap do
+        only only: guard_proc do
+          key "x", -> { handler_called = true; nil }
+        end
+      end
+    end
+
+    update = test_class.from_router
+
+    model = { allowed: false }.freeze
+    event = RatatuiRuby::Event::Key.new(code: "x")
+    _new_model, _cmd = update.call(event, model)
+    refute handler_called, "Handler should not be called when nested only only: guard returns false"
+  end
+
+  # skip block: skips keys when guard is true (inverse of only)
+  def test_keymap_nested_skip_block_when_argument
+    handler_called = false
+    guard_proc = -> (model) { model[:blocked] }
+
+    test_class = Class.new do
+      include RatatuiRuby::Tea::Router
+
+      keymap do
+        skip when: guard_proc do
+          key "x", -> { handler_called = true; nil }
+        end
+      end
+    end
+
+    update = test_class.from_router
+
+    # When blocked is true, handler should NOT be called
+    model = { blocked: true }.freeze
+    event = RatatuiRuby::Event::Key.new(code: "x")
+    _new_model, _cmd = update.call(event, model)
+    refute handler_called, "Handler should be skipped when skip when: guard returns true"
+  end
+
+  def test_keymap_nested_skip_block_if_argument
+    handler_called = false
+    guard_proc = -> (model) { model[:blocked] }
+
+    test_class = Class.new do
+      include RatatuiRuby::Tea::Router
+
+      keymap do
+        skip if: guard_proc do
+          key "x", -> { handler_called = true; nil }
+        end
+      end
+    end
+
+    update = test_class.from_router
+
+    model = { blocked: true }.freeze
+    event = RatatuiRuby::Event::Key.new(code: "x")
+    _new_model, _cmd = update.call(event, model)
+    refute handler_called, "Handler should be skipped when skip if: guard returns true"
+  end
+
+  def test_keymap_nested_skip_block_skip_argument
+    handler_called = false
+    guard_proc = -> (model) { model[:blocked] }
+
+    test_class = Class.new do
+      include RatatuiRuby::Tea::Router
+
+      keymap do
+        skip skip: guard_proc do
+          key "x", -> { handler_called = true; nil }
+        end
+      end
+    end
+
+    update = test_class.from_router
+
+    model = { blocked: true }.freeze
+    event = RatatuiRuby::Event::Key.new(code: "x")
+    _new_model, _cmd = update.call(event, model)
+    refute handler_called, "Handler should be skipped when skip skip: guard returns true"
+  end
+
+  def test_keymap_nested_skip_block_allows_only_one_argument
+    handler_called = false
+    guard_proc_one = -> (model) { model[:blocked] }
+    guard_proc_two = -> (model) { model[:blocked] }
+
+    assert_raises ArgumentError do
+      test_class = Class.new do
+        include RatatuiRuby::Tea::Router
+
+        keymap do
+          skip when: guard_proc_one, if: guard_proc_two do
+            key "x", -> { handler_called = true; nil }
+          end
+        end
+      end
+    end
+  end
+
+  def test_keymap_nested_skip_block_guard_argument
+    handler_called = false
+    guard_proc = -> (model) { model[:blocked] }
+
+    test_class = Class.new do
+      include RatatuiRuby::Tea::Router
+
+      keymap do
+        skip guard: guard_proc do
+          key "x", -> { handler_called = true; nil }
+        end
+      end
+    end
+
+    update = test_class.from_router
+
+    model = { blocked: true }.freeze
+    event = RatatuiRuby::Event::Key.new(code: "x")
+    _new_model, _cmd = update.call(event, model)
+    refute handler_called, "Handler should be skipped when skip guard: guard returns true"
+  end
 end

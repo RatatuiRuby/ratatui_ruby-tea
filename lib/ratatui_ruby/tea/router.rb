@@ -198,6 +198,7 @@ module RatatuiRuby
         # :nodoc:
         def initialize
           @handlers = {}
+          @guard_stack = []
         end
 
         # Registers a key handler.
@@ -216,21 +217,83 @@ module RatatuiRuby
           end
           entry[:route] = route if route
 
+          guards = @guard_stack.dup
+
           # Positive guards (when, if, only, guard)
           positive = binding.local_variable_get(:when) ||
             binding.local_variable_get(:if) ||
             only ||
             guard
-          entry[:guard] = positive if positive
+          guards << positive if positive
 
           # Negative guards (unless, except, skip) - wrap to invert
           negative = binding.local_variable_get(:unless) || except || skip
           if negative
-            original = negative
-            entry[:guard] = -> (model) { !original.call(model) }
+            guards << -> (model) { !negative.call(model) }
+          end
+
+          if guards.any?
+            entry[:guard] = -> (model) { guards.all? { |g| g.call(model) } }
           end
 
           @handlers[key_name.to_s] = entry
+        end
+
+        # Applies a guard to all keys in the block.
+        #
+        # [when/if/only/guard] Guard that runs if truthy.
+        def only(when: nil, if: nil, only: nil, guard: nil, &)
+          arg_count = 0
+          arg_count += 1 if binding.local_variable_get(:when)
+          arg_count += 1 if binding.local_variable_get(:if)
+          arg_count += 1 if only
+          arg_count += 1 if guard
+
+          if arg_count > 1
+            raise ArgumentError, "only accepts exactly one of: when, if, only, guard"
+          end
+
+          positive = binding.local_variable_get(:when) ||
+            binding.local_variable_get(:if) ||
+            only ||
+            guard
+          with_guard(positive, &)
+        end
+
+        # Skips all keys in the block when the guard is true.
+        #
+        # [when/if/skip/guard] Guard that skips if truthy.
+        def skip(when: nil, if: nil, skip: nil, guard: nil, &)
+          arg_count = 0
+          arg_count += 1 if binding.local_variable_get(:when)
+          arg_count += 1 if binding.local_variable_get(:if)
+          arg_count += 1 if skip
+          arg_count += 1 if guard
+
+          if arg_count > 1
+            raise ArgumentError, "skip accepts exactly one of: when, if, skip, guard"
+          end
+
+          skip_guard = binding.local_variable_get(:when) ||
+            binding.local_variable_get(:if) ||
+            skip ||
+            guard
+
+          # Invert the guard: skip when true means run when false
+          inverted = skip_guard ? -> (model) { !skip_guard.call(model) } : nil
+          with_guard(inverted, &)
+        end
+        private def with_guard(guard, &block)
+          if guard
+            @guard_stack << guard
+            begin
+              block.call
+            ensure
+              @guard_stack.pop
+            end
+          else
+            block.call
+          end
         end
       end
 
