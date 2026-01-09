@@ -166,24 +166,43 @@ module RatatuiRuby
           "#{name.capitalize} is not Ractor-shareable. Use Ractor.make_shareable or Object#freeze."
       end
 
-      # Dispatches a command to the worker pool.
+      # Dispatches a command asynchronously. :nodoc:
       #
-      # Spawns a thread for async commands. Pushes result to +queue+.
-      # Returns the spawned thread (or nil for non-threaded commands).
-      # Handles nested commands (Batch, Sequence) recursively.
+      # Spawns a background thread and pushes results to the message queue.
+      # See Command.system for message formats.
       private_class_method def self.dispatch(command, queue)
         case command
         when Command::System
           Thread.new do
             require "open3"
-            stdout, stderr, status = Open3.capture3(command.command)
-            message = [command.tag, { stdout:, stderr:, status: status.exitstatus }]
-            queue << Ractor.make_shareable(message)
-          rescue => _error
-            # Should we send an error message? For now, crash in debug, ignore in prod?
-            # Better to rely on Open3 not raising for standard execution.
+            if command.stream?
+              begin
+                Open3.popen3(command.command) do |stdin, stdout, stderr, wait_thr|
+                  stdin.close
+                  stdout_thread = Thread.new do
+                    stdout.each_line do |line|
+                      queue << Ractor.make_shareable([command.tag, :stdout, line])
+                    end
+                  end
+                  stderr_thread = Thread.new do
+                    stderr.each_line do |line|
+                      queue << Ractor.make_shareable([command.tag, :stderr, line])
+                    end
+                  end
+                  stdout_thread.join
+                  stderr_thread.join
+                  status = wait_thr.value.exitstatus
+                  queue << Ractor.make_shareable([command.tag, :complete, { status: }])
+                end
+              rescue Errno::ENOENT, Errno::EACCES => e
+                queue << Ractor.make_shareable([command.tag, :error, { message: e.message }])
+              end
+            else
+              stdout, stderr, status = Open3.capture3(command.command)
+              message = [command.tag, { stdout:, stderr:, status: status.exitstatus }]
+              queue << Ractor.make_shareable(message)
+            end
           end
-          # TODO: Add Batch, Sequence, NetHttp
         when Command::Mapped
           inner_queue = Queue.new
           inner_thread = dispatch(command.inner_command, inner_queue)

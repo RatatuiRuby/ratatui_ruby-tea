@@ -366,7 +366,7 @@ class TestRuntime < Minitest::Test
       case msg
       when RatatuiRuby::Event::Key
         if msg.code == "a"
-          cmd = RatatuiRuby::Tea::Command.system("echo 'loaded'", tag: :data)
+          cmd = RatatuiRuby::Tea::Command.system("echo 'loaded'", :data)
           [m, cmd]
         elsif msg.q?
           result_seen_before_quit = m[:result]
@@ -375,8 +375,8 @@ class TestRuntime < Minitest::Test
           m
         end
       when Array
-        tag_hash, data = msg
-        if tag_hash[:tag] == :data
+        tag, data = msg
+        if tag == :data
           Ractor.make_shareable({ result: data[:stdout].strip })
         else
           m

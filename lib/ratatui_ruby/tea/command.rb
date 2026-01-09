@@ -52,21 +52,32 @@ module RatatuiRuby
 
       # Command to run a shell command via Open3.
       #
-      # The runtime executes the command and produces a message:
-      # <tt>[tag, {stdout:, stderr:, status:}]</tt>
+      # The runtime executes the command and produces messages. In batch mode
+      # (default), a single message arrives: <tt>[tag, {stdout:, stderr:, status:}]</tt>.
       #
-      # The +status+ is the integer exit code (0 = success).
-      System = Data.define(:command, :tag)
+      # In streaming mode, messages arrive incrementally:
+      # - <tt>[tag, :stdout, line]</tt> for each stdout line
+      # - <tt>[tag, :stderr, line]</tt> for each stderr line
+      # - <tt>[tag, :complete, {status:}]</tt> when the command finishes
+      # - <tt>[tag, :error, {message:}]</tt> if the command cannot start
+      #
+      # The <tt>status</tt> is the integer exit code (0 = success).
+      System = Data.define(:command, :tag, :stream) do
+        # Returns true if streaming mode is enabled.
+        def stream?
+          stream
+        end
+      end
 
       # Creates a shell execution command.
       #
       # [command] Shell command string to execute.
       # [tag] Symbol or class to tag the result message.
+      # [stream] If <tt>true</tt>, the runtime sends incremental stdout/stderr
+      #   messages as they arrive. If <tt>false</tt> (default), waits for
+      #   completion and sends a single message with all output.
       #
-      # When the command completes, the runtime sends
-      # <tt>[tag, {stdout:, stderr:, status:}]</tt> to update.
-      #
-      # === Example
+      # === Example (Batch Mode)
       #
       #   # Return this from update:
       #   [model.with(loading: true), Command.system("ls -la", :got_files)]
@@ -80,8 +91,27 @@ module RatatuiRuby
       #       [model.with(error: stderr), nil]
       #     end
       #   end
-      def self.system(command, tag)
-        System.new(command:, tag:)
+      #
+      # === Example (Streaming Mode)
+      #
+      #   # Return this from update:
+      #   [model.with(loading: true), Command.system("tail -f log.txt", :log, stream: true)]
+      #
+      #   # Then handle incremental messages:
+      #   def update(message, model)
+      #     case message
+      #     in [:log, :stdout, line]
+      #       [model.with(lines: [*model.lines, line]), nil]
+      #     in [:log, :stderr, line]
+      #       [model.with(errors: [*model.errors, line]), nil]
+      #     in [:log, :complete, {status:}]
+      #       [model.with(loading: false, exit_status: status), nil]
+      #     in [:log, :error, {message:}]
+      #       [model.with(loading: false, error: message), nil]
+      #     end
+      #   end
+      def self.system(command, tag, stream: false)
+        System.new(command:, tag:, stream:)
       end
 
       # Command that wraps another command's result with a transformation.

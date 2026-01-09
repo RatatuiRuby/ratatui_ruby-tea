@@ -15,7 +15,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Router DSL**: New `Tea::Router` module provides declarative routing for Fractal Architecture:
+  - `route :prefix, to: ChildBag` — declares a child bag route
+  - `keymap { key "q", -> { Command.exit } }` — declares keyboard handlers
+  - `mousemap { click -> (x, y) { ... } }` — declares mouse handlers
+  - `action :name, handler` — declares reusable actions for key/mouse handlers
+  - `from_router` — generates an UPDATE lambda from routes and handlers
+
+- **Composition Helpers**: New helper methods for Fractal Architecture reduce boilerplate:
+  - `Tea.route(command, :prefix)` — wraps a command to route results to a child bag
+  - `Tea.delegate(message, :prefix, child_update, child_model)` — dispatches prefixed messages to child bags
+
+- **Command Mapping**: `Command.map(inner_command, &mapper)` wraps a child command and transforms its result message. Essential for parent bags routing child command results.
+
+- **Shortcuts Module**: `require "ratatui_ruby/tea/shortcuts"` and `include Tea::Shortcuts` for short aliases:
+  - `Cmd.exit` — alias for `Command.exit`
+  - `Cmd.sh(command, tag)` — alias for `Command.system`
+  - `Cmd.map(command, &block)` — alias for `Command.map`
+
+- **Sync Event Integration**: Runtime now handles `Event::Sync` from `RatatuiRuby::SyntheticEvents`. When a Sync event is received, the runtime waits for all pending async threads and processes their results before continuing. Use `inject_sync` in tests for deterministic async verification.
+
+- **Streaming Command Output**: `Command.system` now accepts a `stream:` keyword argument. When `stream: true`, the runtime sends incremental messages (`[:tag, :stdout, line]`, `[:tag, :stderr, line]`) as output arrives, followed by `[:tag, :complete, {status:}]` when the command finishes. Invalid commands send `[:tag, :error, {message:}]`. Default behavior (`stream: false`) remains unchanged.
+
 ### Changed
+
+- **Command Module Rename (Breaking)**: The `Cmd` module is now `Command` with Rubyish naming:
+  - `Cmd::Quit` → `Command::Exit` (use `Command.exit` factory)
+  - `Cmd::Exec` → `Command::System` (use `Command.system(cmd, tag)` factory)
 
 ### Fixed
 

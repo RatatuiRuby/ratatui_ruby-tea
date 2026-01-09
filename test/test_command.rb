@@ -20,6 +20,16 @@ class TestCommand < Minitest::Test
     assert_equal :got_output, command.tag
   end
 
+  def test_command_system_defaults_to_non_streaming
+    command = RatatuiRuby::Tea::Command.system("echo hello", :got_output)
+    refute command.stream?, "stream? should default to false"
+  end
+
+  def test_command_system_accepts_stream_kwarg
+    command = RatatuiRuby::Tea::Command.system("echo hello", :got_output, stream: true)
+    assert command.stream?, "stream? should be true when passed"
+  end
+
   def test_command_system_is_ractor_shareable
     command = RatatuiRuby::Tea::Command.system("ls", :files)
     # The command itself should be shareable (no Proc captures)

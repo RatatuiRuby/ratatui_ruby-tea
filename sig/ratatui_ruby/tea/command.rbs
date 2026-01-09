@@ -15,8 +15,12 @@ module RatatuiRuby
       class System < Data
         attr_reader command: String
         attr_reader tag: Symbol | Class
+        attr_reader stream: bool
 
-        def self.new: (command: String, tag: (Symbol | Class)) -> instance
+        # Returns true if streaming mode is enabled.
+        def stream?: () -> bool
+
+        def self.new: (command: String, tag: (Symbol | Class), stream: bool) -> instance
       end
 
       # Command that wraps another command's result with a transformation.
@@ -34,7 +38,7 @@ module RatatuiRuby
       def self.exit: () -> Quit
 
       # Creates a shell execution command.
-      def self.system: (String command, (Symbol | Class) tag) -> Execute
+      def self.system: (String command, (Symbol | Class) tag, ?stream: bool) -> System
 
       # Creates a mapped command for Fractal Architecture composition.
       def self.map: (execution inner_command) { (untyped) -> untyped } -> Mapped
