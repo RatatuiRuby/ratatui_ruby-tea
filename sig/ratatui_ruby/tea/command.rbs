@@ -78,6 +78,16 @@ module RatatuiRuby
         # Cleanup time after cancellation is requested. In seconds.
         def tea_cancellation_grace_period: () -> Float
       end
+
+      # Messaging gateway for custom commands.
+      class Outlet
+        @queue: Thread::Queue[untyped]
+
+        def self.new: (Thread::Queue[untyped] queue) -> instance
+
+        # Sends a tagged message to the runtime.
+        def put: (Symbol tag, *untyped payload) -> void
+      end
     end
   end
 end

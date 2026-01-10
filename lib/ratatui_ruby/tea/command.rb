@@ -7,6 +7,7 @@
 
 require_relative "command/cancellation_token"
 require_relative "command/custom"
+require_relative "command/outlet"
 
 module RatatuiRuby
   module Tea

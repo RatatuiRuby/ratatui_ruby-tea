@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Command::Custom Mixin**: Include in your class to mark it as a custom command. Provides `tea_command?` brand predicate and `tea_cancellation_grace_period` (default 2.0 seconds) for configuring cleanup time after cancellation.
 
+- **Command::Outlet**: Messaging gateway for custom commands. Use `put(tag, *payload)` to send results back to the update function. Validates Ractor-shareability in debug mode.
+
 ### Changed
 
 ### Fixed
