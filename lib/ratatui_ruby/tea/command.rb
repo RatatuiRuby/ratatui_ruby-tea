@@ -144,6 +144,39 @@ module RatatuiRuby
       def self.map(inner_command, &mapper)
         Mapped.new(inner_command:, mapper:)
       end
+
+      # Gives a callable unique identity for cancellation.
+      #
+      # Reusable procs and lambdas share identity. Dispatch them twice, and
+      # +Command.cancel+ would cancel both. Wrap them to get distinct handles.
+      #
+      # [callable] Proc, lambda, or any object responding to +call(out, token)+.
+      #            If omitted, the block is used.
+      # [grace_period] Cleanup time override. Default: 2.0 seconds.
+      #
+      # === Example
+      #
+      #   # With callable
+      #   cmd = Command.custom(->(out, token) { out.put(:fetched, data) })
+      #
+      #   # With block
+      #   cmd = Command.custom(grace_period: 5.0) do |out, token|
+      #     until token.cancelled?
+      #       out.put(:tick, Time.now)
+      #       sleep 1
+      #     end
+      #   end
+      def self.custom(callable = nil, grace_period: nil, &block)
+        Wrapped.new(callable: callable || block, grace_period:)
+      end
+
+      # :nodoc:
+      Wrapped = Data.define(:callable, :grace_period) do
+        include Custom
+        def tea_cancellation_grace_period = grace_period || super
+        def call(out, token) = callable.call(out, token)
+      end
+      private_constant :Wrapped
     end
   end
 end
