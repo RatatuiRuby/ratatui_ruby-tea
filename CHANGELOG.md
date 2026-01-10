@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Ractor Enforcement is Debug-Only**: The Ractor-shareability check now only runs in debug mode (and automated tests). Production skips this check for performance, matching the original specification. Previously, the check ran unconditionally.
+
 ### Removed
 
 ## [0.3.0] - 2026-01-08

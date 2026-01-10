@@ -159,7 +159,11 @@ module RatatuiRuby
       #
       # Models and messages must be shareable for future Ractor support.
       # Mutable objects cause race conditions. Freeze your data.
+      #
+      # Only enforced in debug mode (and tests). Production skips this check
+      # for performance; mutable objects will still cause bugs, but silently.
       private_class_method def self.validate_ractor_shareable!(object, name)
+        return unless RatatuiRuby::Debug.enabled?
         return if Ractor.shareable?(object)
 
         raise RatatuiRuby::Error::Invariant,

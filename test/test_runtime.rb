@@ -153,6 +153,21 @@ class TestRuntime < Minitest::Test
     assert view_called, "view should have been called"
   end
 
+  def test_mutable_model_allowed_in_production_mode
+    mutable_model = { count: 0 } # NOT frozen
+
+    view = -> (_m, tui) { tui.clear }
+    update = -> (_msg, _m) { RatatuiRuby::Tea::Command.exit }
+
+    RatatuiRuby::Debug.suppress_debug_mode do
+      with_test_terminal do
+        inject_key("q")
+        # Should NOT raise - validation is skipped in production mode
+        RatatuiRuby::Tea::Runtime.run(model: mutable_model, view:, update:)
+      end
+    end
+  end
+
   def test_mutable_model_raises_error
     mutable_model = { count: 0 } # NOT frozen
 
