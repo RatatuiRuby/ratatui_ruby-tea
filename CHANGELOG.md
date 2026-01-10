@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Command::Outlet**: Messaging gateway for custom commands. Use `put(tag, *payload)` to send results back to the update function. Validates Ractor-shareability in debug mode.
 
+- **Custom Command Dispatch**: Runtime now dispatches custom commands (objects with `tea_command?` returning true) in background threads. Commands receive an `Outlet` for messaging and a `CancellationToken` for cooperative shutdown.
+
 ### Changed
 
 ### Fixed

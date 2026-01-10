@@ -20,7 +20,9 @@ Custom commands enable developers to extend Tea with custom side effects (WebSoc
 1. **`Tea::Command::Custom`** — Mixin for command identification
 2. **`Tea::Command::Outlet`** — Ractor-safe message passing abstraction
 3. **`Tea::Command::CancellationToken`** — Cooperative cancellation mechanism
-4. **Thread Tracking** — Runtime safety net for resource cleanup
+4. **`Command.custom { ... }`** — Wrapper giving callables unique identity for cancellation
+5. **`Command.cancel(handle)`** — Pure TEA command for user-initiated cancellation
+6. **Thread Tracking** — Runtime safety net for resource cleanup
 
 ---
 
@@ -107,6 +109,80 @@ module RatatuiRuby::Tea::Command
 end
 ```
 
+### Command.custom (Simple Wrapper)
+
+Wraps a callable (or block) to give it unique identity per dispatch. Without this, a reusable constant dispatched multiple times would have the same identity, making targeted cancellation impossible.
+
+```ruby
+module RatatuiRuby::Tea::Command
+  # Wrap a proc in a unique container for dispatch tracking.
+  #
+  # Class-based commands already have unique identity per instantiation.
+  # Use this for lambdas/procs you want to dispatch multiple times
+  # with independent cancellation.
+  #
+  # === Example
+  #
+  #   SlowFetch = ->(out, token) { ... }
+  #
+  #   # Each call produces a unique wrapper
+  #   cmd = Command.custom(SlowFetch)
+  #   [model.merge(active_cmd: cmd), cmd]
+  #
+  def self.custom(callable)
+    Custom::Wrapped.new(callable)
+  end
+
+  module Custom
+    class Wrapped
+      include Custom
+
+      def initialize(callable)
+        @callable = callable
+      end
+
+      def call(out, token)
+        @callable.call(out, token)
+      end
+    end
+  end
+end
+```
+
+### Command.cancel (User-Initiated Cancellation)
+
+Returns from update to request cancellation of a running command. Pure TEA—side effects flow through the update function.
+
+The runtime respects the command's `tea_cancellation_grace_period`:
+1. Signals cooperative cancellation via the token
+2. Waits for the grace period
+3. Force-kills only if the command ignores cancellation
+
+```ruby
+module RatatuiRuby::Tea::Command
+  # Request cancellation of a running command.
+  #
+  # The model stores the command handle (the object returned to update).
+  # Returning Command.cancel(handle) signals the runtime to cancel it.
+  #
+  # === Example
+  #
+  #   # Dispatch and store handle
+  #   cmd = FetchData.new(url)
+  #   [model.merge(active_fetch: cmd), cmd]
+  #
+  #   # User clicks cancel
+  #   when :cancel_clicked
+  #     [model.merge(active_fetch: nil), Command.cancel(model[:active_fetch])]
+  #
+  Cancel = Data.define(:handle)
+
+  def self.cancel(handle)
+    Cancel.new(handle: handle)
+  end
+end
+```
+
 ---
 
 ## The _Command Interface
@@ -137,8 +213,7 @@ end
 class Runtime
   def initialize
     @queue = Thread::Queue.new
-    @active_commands = {}  # id => { thread:, token: Command::CancellationToken, command: }
-    @next_command_id = 0
+    @active_commands = {}  # command => { thread:, token: }
   end
 
   private def dispatch(command)
@@ -147,6 +222,8 @@ class Runtime
       dispatch_system(command)
     when Command::Mapped
       dispatch_mapped(command)
+    when Command::Cancel
+      cancel_command(command.handle)
     else
       dispatch_custom(command) if custom_command?(command)
     end
@@ -159,18 +236,17 @@ class Runtime
   end
 
   private def dispatch_custom(command)
-    id = @next_command_id += 1
     token = Command::CancellationToken.new
     outlet = Command::Outlet.new(@queue)
 
     thread = Thread.new do
       command.call(outlet, token)
     rescue => e
-      outlet.put(:command_error, id: id, error: e.message)
+      outlet.put(:command_error, command: command.class.name, error: e.message)
     end
 
-    @active_commands[id] = { thread: thread, token: token, command: command }
-    id
+    # Command object itself is the key (unique identity)
+    @active_commands[command] = { thread: thread, token: token }
   end
 end
 ```
@@ -179,13 +255,12 @@ end
 
 ```ruby
 class Runtime
-  # Cancel a running command by ID.
+  # Cancel a running command by its handle (the command object itself).
   # Uses cooperative cancellation with configurable timeout.
-  def cancel_command(id)
-    entry = @active_commands[id]
+  private def cancel_command(handle)
+    entry = @active_commands[handle]
     return unless entry
 
-    command = entry[:command]
     token = entry[:token]
     thread = entry[:thread]
 
@@ -195,7 +270,7 @@ class Runtime
     token.cancel!
 
     # 2. Wait for grace period (respect Float::INFINITY)
-    grace = command.tea_cancellation_grace_period
+    grace = handle.tea_cancellation_grace_period
     if grace.finite?
       deadline = Time.now + grace
       while thread.alive? && Time.now < deadline
@@ -208,18 +283,18 @@ class Runtime
 
     # 3. Force-kill if still alive and grace was finite
     if thread.alive? && grace.finite?
-      warn "[Tea] Command #{command.class} did not stop within #{grace}s, killing"
+      warn "[Tea] Command #{handle.class} did not stop within #{grace}s, killing"
       thread.kill
     end
 
-    @active_commands.delete(id)
+    @active_commands.delete(handle)
   end
 
   # Shutdown all commands (app exit).
   # Ignores grace periods for fast shutdown.
-  def shutdown
-    @active_commands.each_value do |entry|
-      entry[:token].cancel!
+  private def shutdown
+    @active_commands.each_key do |handle|
+      @active_commands[handle][:token].cancel!
     end
 
     # Brief cooperative window
@@ -244,7 +319,7 @@ end
 Ruby allows defining singleton methods on any object, including Procs. This enables a lightweight command style without classes:
 
 ```ruby
-# Simple one-shot command
+# Simple one-shot command (ignores token—completes instantly, not cancellable)
 Ping = ->(out, _token) { out.put(:pong) }
 def Ping.tea_command? = true
 
@@ -287,22 +362,45 @@ def FetchData.tea_command? = true
 def FetchData.tea_cancellation_grace_period = 5.0
 ```
 
-> **Future consideration**: A unified factory that accepts any callable or block:
-> ```ruby
-> # With callables
-> Command.custom(->(out) { out.put(:done) })
-> Command.custom(method(:fetch_data), grace_period: 5.0)
-> Command.custom(MyFetcher.new)
->
-> # With block (more idiomatic)
-> Command.custom(grace_period: 10.0) do |out, token|
->   until token.cancelled?
->     out.put(:tick, Time.now)
->     sleep 1
->   end
-> end
-> ```
-> This would attach singleton methods automatically. One method, multiple styles.
+### Using Command.custom for Unique Identity
+
+For reusable callables that may be dispatched multiple times, use `Command.custom` to give each dispatch unique identity:
+
+```ruby
+# Reusable callable
+SlowFetch = ->(out, token) {
+  until token.cancelled?
+    data = fetch_batch
+    out.put(:batch, data)
+    sleep 5
+  end
+}
+def SlowFetch.tea_command? = true
+def SlowFetch.tea_cancellation_grace_period = 10.0
+
+# Each Command.custom call produces a unique wrapper
+def update(msg, model)
+  case msg
+  in :start_fetch
+    cmd = Command.custom(SlowFetch)
+    [model.merge(active_fetch: cmd), cmd]
+  in :cancel_fetch
+    [model.merge(active_fetch: nil), Command.cancel(model[:active_fetch])]
+  end
+end
+```
+
+With block syntax:
+
+```ruby
+cmd = Command.custom(grace_period: 10.0) do |out, token|
+  until token.cancelled?
+    out.put(:tick, Time.now)
+    sleep 1
+  end
+end
+[model.merge(active_cmd: cmd), cmd]
+```
 
 ### Class-Based Command (Full Control)
 

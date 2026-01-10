@@ -152,7 +152,11 @@ module RatatuiRuby
 
       # Returns +true+ if +value+ is a valid command (+nil+ or a +Command+ type).
       private_class_method def self.valid_command?(value)
-        value.nil? || value.class.name&.start_with?("RatatuiRuby::Tea::Command::")
+        return true if value.nil?
+        return true if value.class.name&.start_with?("RatatuiRuby::Tea::Command::")
+        return true if value.respond_to?(:tea_command?) && value.tea_command?
+
+        false
       end
 
       # Validates an object is Ractor-shareable (deeply frozen).
@@ -215,6 +219,16 @@ module RatatuiRuby
             inner_message = inner_queue.pop
             transformed = command.mapper.call(inner_message)
             queue << Ractor.make_shareable(transformed)
+          end
+        else
+          # Custom command (responds to tea_command?)
+          if command.respond_to?(:tea_command?) && command.tea_command?
+            token = Command::CancellationToken.new
+            outlet = Command::Outlet.new(queue)
+
+            Thread.new do
+              command.call(outlet, token)
+            end
           end
         end
       end
