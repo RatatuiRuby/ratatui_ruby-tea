@@ -69,6 +69,15 @@ module RatatuiRuby
         # Singleton null token.
         NONE: NoneToken
       end
+
+      # Mixin for user-defined custom commands.
+      module Custom
+        # Brand predicate for command identification.
+        def tea_command?: () -> true
+
+        # Cleanup time after cancellation is requested. In seconds.
+        def tea_cancellation_grace_period: () -> Float
+      end
     end
   end
 end

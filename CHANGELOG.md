@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **CancellationToken**: Cooperative cancellation mechanism for long-running custom commands. Commands check `cancelled?` periodically and stop gracefully when `cancel!` is called. Includes `CancellationToken::NONE` null object for commands that ignore cancellation.
 
+- **Command::Custom Mixin**: Include in your class to mark it as a custom command. Provides `tea_command?` brand predicate and `tea_cancellation_grace_period` (default 2.0 seconds) for configuring cleanup time after cancellation.
+
 ### Changed
 
 ### Fixed
