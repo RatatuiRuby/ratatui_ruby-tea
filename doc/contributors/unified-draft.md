@@ -656,3 +656,65 @@ Redux Saga's `put()` is the direct inspiration for `out.put()`.
 - [BubbleTea Tutorials](https://github.com/charmbracelet/bubbletea)
 - [Redux Saga Documentation](https://redux-saga.js.org/)
 - [Enterprise Integration Patterns (online)](https://www.enterpriseintegrationpatterns.com/)
+
+---
+
+## Appendix: Implementation Roadmap
+
+This specification can be implemented in four discrete, independently-testable units. Each builds on the previous.
+
+### Unit 1: CancellationToken
+
+**Scope**: `Command::CancellationToken` class + `NONE` constant
+
+| Criteria | Assessment |
+|----------|------------|
+| Self-contained | ✅ No dependencies on other new abstractions |
+| Independently testable | ✅ Pure Ruby, no TUI/Runtime needed |
+| Required by later units | ✅ Runtime dispatch and `cancel_command` need it |
+| Surface area | 3 methods (`initialize`, `cancel!`, `cancelled?`) + 1 constant (`NONE`) |
+
+---
+
+### Unit 2: Command::Custom Mixin
+
+**Scope**: `Command::Custom` module with brand predicate and grace period
+
+| Criteria | Assessment |
+|----------|------------|
+| Self-contained | ✅ Module with default implementations |
+| Independently testable | ✅ Include in test class, verify behavior |
+| Required by later units | ✅ Runtime's `custom_command?` check needs it |
+| Surface area | 2 methods (`tea_command?`, `tea_cancellation_grace_period`) |
+
+---
+
+### Unit 3: Outlet
+
+**Scope**: `Command::Outlet` messaging gateway
+
+| Criteria | Assessment |
+|----------|------------|
+| Self-contained | ✅ Wraps Queue, validates shareability |
+| Independently testable | ✅ Pass mock queue, verify `put` behavior |
+| Required by later units | ✅ Runtime creates Outlet for custom dispatch |
+| Surface area | 2 methods (`initialize`, `put`) |
+
+---
+
+### Unit 4: Runtime Custom Dispatch
+
+**Scope**: Integration into `Runtime.run`
+
+| Criteria | Assessment |
+|----------|------------|
+| Depends on | Units 1–3 |
+| Changes | Add `@active_commands`, extend `dispatch`, add `cancel_command`, add `shutdown` |
+| Testable | ✅ Full integration tests with custom commands |
+
+**Sub-tasks**:
+1. Add `custom_command?` detection to `valid_command?`
+2. Add `dispatch_custom` case to `dispatch`
+3. Add thread tracking (`@active_commands`)
+4. Add `cancel_command(id)` method
+5. Add `shutdown` method for app exit

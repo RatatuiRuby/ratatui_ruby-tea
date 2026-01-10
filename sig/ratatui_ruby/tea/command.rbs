@@ -41,7 +41,34 @@ module RatatuiRuby
       def self.system: (String command, (Symbol | Class) tag, ?stream: bool) -> System
 
       # Creates a mapped command for Fractal Architecture composition.
-      def self.map: (execution inner_command) { (untyped) -> untyped } -> Mapped
+      def self.map: (execution inner_command) { (untyped) -\u003e untyped } -> Mapped
+
+      # Cooperative cancellation mechanism for long-running commands.
+      class CancellationToken
+        # Number of times cancel! has been called.
+        attr_reader cancel_count: Integer
+
+        def self.new: () -> instance
+
+        # Signals cancellation. Thread-safe.
+        def cancel!: () -> void
+
+        # Checks if cancellation was requested. Thread-safe.
+        def cancelled?: () -> bool
+
+        # Null object for commands that ignore cancellation.
+        class NoneToken < Data
+          attr_reader cancelled?: bool
+
+          def self.new: (cancelled?: bool) -> instance
+
+          # Does nothing. Ignores cancellation requests.
+          def cancel!: () -> nil
+        end
+
+        # Singleton null token.
+        NONE: NoneToken
+      end
     end
   end
 end

@@ -5,6 +5,8 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 #++
 
+require_relative "command/cancellation_token"
+
 module RatatuiRuby
   module Tea
     # Commands represent side effects.
