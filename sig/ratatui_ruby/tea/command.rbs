@@ -43,6 +43,16 @@ module RatatuiRuby
       # Creates a mapped command for Fractal Architecture composition.
       def self.map: (execution inner_command) { (untyped) -\u003e untyped } -> Mapped
 
+      # Sentinel value for command cancellation.
+      class Cancel < Data
+        attr_reader handle: untyped
+
+        def self.new: (handle: untyped) -> instance
+      end
+
+      # Request cancellation of a running command.
+      def self.cancel: (untyped handle) -> Cancel
+
       # Cooperative cancellation mechanism for long-running commands.
       class CancellationToken
         # Number of times cancel! has been called.

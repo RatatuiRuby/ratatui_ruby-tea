@@ -25,6 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Command.custom Factory**: Wraps lambdas/procs to give them unique identity for dispatch tracking. Each `Command.custom(callable)` call produces a distinct wrapper, enabling targeted cancellation. Accepts optional `grace_period:` to override the default 2.0 second cleanup window.
 
+- **Command.cancel Factory**: Request cancellation of a running command. Returns a `Command::Cancel` sentinel that the runtime routes to the appropriate command's CancellationToken.
+
 ### Changed
 
 ### Fixed

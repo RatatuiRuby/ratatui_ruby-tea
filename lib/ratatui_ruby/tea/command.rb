@@ -54,6 +54,36 @@ module RatatuiRuby
         Exit.new
       end
 
+      # Sentinel value for command cancellation.
+      #
+      # Long-running commands (WebSocket listeners, database pollers) run until stopped.
+      # Stopping them requires signaling from outside the command. The runtime tracks
+      # active commands by their object identity and routes cancel requests.
+      #
+      # This type carries the handle (command object) to cancel. The runtime pattern-matches
+      # on <tt>Command::Cancel</tt> and signals the token.
+      Cancel = Data.define(:handle)
+
+      # Request cancellation of a running command.
+      #
+      # The model stores the command handle (the command object itself). Returning
+      # <tt>Command.cancel(handle)</tt> signals the runtime to stop it.
+      #
+      # [handle] The command object to cancel.
+      #
+      # === Example
+      #
+      #   # Dispatch and store handle
+      #   cmd = FetchData.new(url)
+      #   [model.with(active_fetch: cmd), cmd]
+      #
+      #   # User clicks cancel
+      #   when :cancel_clicked
+      #     [model.with(active_fetch: nil), Command.cancel(model.active_fetch)]
+      def self.cancel(handle)
+        Cancel.new(handle:)
+      end
+
       # Command to run a shell command via Open3.
       #
       # The runtime executes the command and produces messages. In batch mode
