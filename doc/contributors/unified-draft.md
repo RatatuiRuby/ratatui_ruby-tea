@@ -406,6 +406,9 @@ end
 > [!IMPORTANT]
 > Blocks are Ractor-shareable **only if** defined inside a module/class method and they don't close over local variables. Tea inspects bytecode in debug mode to detect accidental closures—you'll see `getlocal` instructions for captured variables vs. `opt_send_without_block` for method calls.
 
+> [!CAUTION]
+> **Parameterized commands**: `Command.custom` and module-constant lambdas cannot accept runtime parameters (e.g., a user ID). Curried procs are not Ractor-shareable. For commands that need parameters, use [Class-Based Commands](#class-based-command-full-control) or [Data.define Commands](#datadefine-command-immutable-by-design).
+
 ### Class-Based Command (Full Control)
 
 ```ruby
@@ -425,6 +428,31 @@ class FetchUserCommand
   end
 end
 ```
+
+### Data.define Command (Immutable by Design)
+
+For commands that need runtime parameters with guaranteed Ractor-safety, use `Data.define`:
+
+```ruby
+module Commands
+  FetchUser = Data.define(:user_id) do
+    include RatatuiRuby::Tea::Command::Custom
+
+    def call(out, _token)
+      user = GRPCClient.fetch_user(user_id)
+      out.put(:user_fetched, user: user)
+    rescue => e
+      out.put(:user_fetch_failed, error: e.message)
+    end
+  end
+end
+
+# Usage in update:
+cmd = Commands::FetchUser.new(user_id: 123)
+[model.with(active_fetch: cmd), cmd]
+```
+
+`Data.define` creates frozen, Ractor-shareable instances automatically. Each `FetchUser.new` has unique identity for cancellation tracking.
 
 ### Long-Running with Cooperative Cancellation
 
