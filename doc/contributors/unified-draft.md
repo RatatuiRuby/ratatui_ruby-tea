@@ -115,11 +115,15 @@ Wraps a callable (or block) to give it unique identity per dispatch. Without thi
 
 ```ruby
 module RatatuiRuby::Tea::Command
-  # Wrap a proc in a unique container for dispatch tracking.
+  # Wrap a callable in a unique container for dispatch tracking.
   #
   # Class-based commands already have unique identity per instantiation.
   # Use this for lambdas/procs you want to dispatch multiple times
   # with independent cancellation.
+  #
+  # [callable] Proc, lambda, or any object responding to call(out, token).
+  #            If omitted, the block is used.
+  # [grace_period] Cleanup time override. Default: 2.0 seconds.
   #
   # === Example
   #
@@ -129,23 +133,17 @@ module RatatuiRuby::Tea::Command
   #   cmd = Command.custom(SlowFetch)
   #   [model.merge(active_cmd: cmd), cmd]
   #
-  def self.custom(callable)
-    Custom::Wrapped.new(callable)
+  def self.custom(callable = nil, grace_period: nil, &block)
+    Wrapped.new(callable: callable || block, grace_period:)
   end
 
-  module Custom
-    class Wrapped
-      include Custom
-
-      def initialize(callable)
-        @callable = callable
-      end
-
-      def call(out, token)
-        @callable.call(out, token)
-      end
-    end
+  # Private implementation using Data.define for immutability
+  Wrapped = Data.define(:callable, :grace_period) do
+    include Custom
+    def tea_cancellation_grace_period = grace_period || super
+    def call(out, token) = callable.call(out, token)
   end
+  private_constant :Wrapped
 end
 ```
 
@@ -341,6 +339,9 @@ def SlowFetch.tea_cancellation_grace_period = 10.0
 
 This satisfies the `_Command` interface through pure duck typing—no wrappers, no special cases.
 
+> [!TIP]
+> **Ractor Ready**: Module-constant lambdas are Ractor-shareable because their `self` is the frozen module, not a mutable object. `Ractor.make_shareable(SlowFetch)` works—Tea validates this in debug mode.
+
 **All callable types support singleton methods:**
 
 | Type | Example |
@@ -401,6 +402,9 @@ cmd = Command.custom(grace_period: 10.0) do |out, token|
 end
 [model.merge(active_cmd: cmd), cmd]
 ```
+
+> [!IMPORTANT]
+> Blocks are Ractor-shareable **only if** defined inside a module/class method and they don't close over local variables. Tea inspects bytecode in debug mode to detect accidental closures—you'll see `getlocal` instructions for captured variables vs. `opt_send_without_block` for method calls.
 
 ### Class-Based Command (Full Control)
 
@@ -547,6 +551,45 @@ Different commands have different cleanup needs:
 - Database transaction: ∞ (never interrupt)
 
 The module provides a sensible default (2s) that works for most cases.
+
+---
+
+### Ractor Readiness
+
+This design is forward-compatible with Ruby's Ractor-based parallelism.
+
+**What's already shareable:**
+
+| Pattern | Shareable? | Why |
+|---------|------------|-----|
+| Module-constant lambda | ✅ Yes | `self` is the frozen module |
+| Closure-free block | ✅ Yes | No captured variables |
+| Data.define command | ✅ Yes | Immutable by definition |
+| Frozen class instance | ✅ Yes | Deeply frozen |
+
+**Debug mode validation:**
+
+In debug mode, Tea validates Ractor shareability at dispatch time:
+
+1. `Ractor.shareable?(command)` — catches most issues
+2. **Bytecode inspection** for blocks — detects if a block accidentally references a variable that doesn't exist in scope (would pass `shareable?` but fail at runtime)
+
+```ruby
+# Debug mode inspects this:
+iseq = RubyVM::InstructionSequence.of(block)
+# Looks for getlocal (captured) vs. opt_send_without_block (method call)
+```
+
+**Why Thread dispatch is Ractor-safe:**
+
+The Thread-based dispatch (L238-250) doesn't violate Ractor isolation because:
+
+1. Commands execute in Threads within the **main Ractor**
+2. Only messages (via Outlet) cross the shareability boundary
+3. CancellationToken stays within its Thread—never shared across Ractors
+4. The `@active_commands` hash is local to the Runtime (main Ractor)
+
+When Ruby evolves to true Ractor parallelism, this design upgrades transparently: commands are already validated as shareable, so they could be sent to worker Ractors without code changes.
 
 ---
 
